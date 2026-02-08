@@ -1,25 +1,30 @@
 import org.jetbrains.compose.web.css.*
 
 object MonsterSheetStyle : StyleSheet() {
-    val container by style {
+    val mainContainer by style {
+        maxWidth(800.px)
+        property("margin", "0 auto") // Center horizontally
+        position(Position.Relative)
+    }
+
+    val controlsContainer by style {
+        display(DisplayStyle.Flex)
+        justifyContent(JustifyContent.SpaceBetween)
+        alignItems(AlignItems.Center)
+        marginBottom(5.px)
+        padding(0.px, 5.px)
+        fontFamily("monospace")
+        fontSize(12.px)
+        color(Color("#666"))
+    }
+
+    val sheetContainer by style {
         fontFamily("Helvetica", "Arial", "sans-serif")
         backgroundColor(Color("#fdf1dc")) // Parchment color
         color(Color("#58180d")) // Dark reddish brown
         padding(20.px)
-        maxWidth(800.px)
-        property("margin", "0 auto") // Center horizontally
         border(2.px, LineStyle.Solid, Color("#58180d"))
         property("box-shadow", "0px 0px 15px gray")
-        position(Position.Relative) // Needed for absolute positioning of children
-    }
-
-    val idLabel by style {
-        position(Position.Absolute)
-        top(5.px)
-        left(5.px)
-        fontSize(10.px)
-        color(Color("#999"))
-        fontFamily("monospace")
     }
 
     val header by style {

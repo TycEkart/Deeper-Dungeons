@@ -27,6 +27,7 @@ kotlin {
                 implementation("io.ktor:ktor-client-js:2.3.10")
                 implementation("io.ktor:ktor-client-content-negotiation:2.3.10")
                 implementation("io.ktor:ktor-serialization-kotlinx-json:2.3.10")
+                implementation(npm("html2canvas", "1.4.1"))
             }
         }
     }

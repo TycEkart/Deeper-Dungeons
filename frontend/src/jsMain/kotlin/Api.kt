@@ -18,8 +18,9 @@ val jsonClient = HttpClient(Js) {
     }
 }
 
-suspend fun fetchMonster(): MonsterDto {
-    return jsonClient.get("http://localhost:8090/monsters").body()
+suspend fun fetchMonster(id: Int? = null): MonsterDto {
+    val url = if (id != null) "http://localhost:8090/monsters/$id" else "http://localhost:8090/monsters"
+    return jsonClient.get(url).body()
 }
 
 suspend fun saveMonster(monster: MonsterDto): MonsterDto {
