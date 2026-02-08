@@ -2,6 +2,8 @@ import androidx.compose.runtime.*
 import com.example.shared.MonsterDto
 import com.example.shared.TraitDto
 import kotlinx.coroutines.launch
+import org.jetbrains.compose.web.attributes.InputType
+import org.jetbrains.compose.web.attributes.accept
 import org.jetbrains.compose.web.attributes.readOnly
 import org.jetbrains.compose.web.attributes.target
 import org.jetbrains.compose.web.css.*
@@ -9,7 +11,9 @@ import org.jetbrains.compose.web.dom.*
 import org.jetbrains.compose.web.renderComposable
 import kotlinx.browser.document
 import kotlinx.browser.window
+import org.w3c.dom.DataTransferItem
 import org.w3c.dom.HTMLElement
+import org.w3c.dom.HTMLInputElement
 
 fun main() {
     renderComposable(rootElementId = "root") {
@@ -54,14 +58,44 @@ fun MonsterList() {
                         borderRadius(5.px)
                         cursor("pointer")
                         backgroundColor(Color.white)
+                        display(DisplayStyle.Flex)
+                        alignItems(AlignItems.Center)
+                        gap(10.px)
                     }
                     onClick {
                         window.location.href = "?id=${monster.id}"
                     }
                 }) {
-                    B { Text(monster.name) }
-                    Span({ style { marginLeft(10.px); color(Color.gray); fontSize(12.px) } }) {
-                        Text(monster.meta)
+                    if (monster.imageUrl != null) {
+                        Img(src = "http://localhost:8090${monster.imageUrl}", alt = monster.name) {
+                            style {
+                                width(50.px)
+                                height(50.px)
+                                property("object-fit", "cover")
+                                borderRadius(50.percent)
+                            }
+                        }
+                    } else {
+                        Div({
+                            style {
+                                width(50.px)
+                                height(50.px)
+                                backgroundColor(Color("#eee"))
+                                borderRadius(50.percent)
+                                display(DisplayStyle.Flex)
+                                justifyContent(JustifyContent.Center)
+                                alignItems(AlignItems.Center)
+                                fontSize(20.px)
+                                color(Color("#aaa"))
+                            }
+                        }) { Text("?") }
+                    }
+
+                    Div {
+                        Div { B { Text(monster.name) } }
+                        Span({ style { color(Color.gray); fontSize(12.px) } }) {
+                            Text(monster.meta)
+                        }
                     }
                 }
             }
@@ -121,6 +155,7 @@ fun MonsterSheet(initialMonster: MonsterDto, onSave: (MonsterDto) -> Unit) {
     var monster by remember { mutableStateOf(initialMonster) }
     var isEditingEnabled by remember { mutableStateOf(false) }
     var showPrompt by remember { mutableStateOf(false) }
+    val scope = rememberCoroutineScope()
 
     // Update local state when initialMonster changes (e.g. after save)
     LaunchedEffect(initialMonster) {
@@ -204,21 +239,60 @@ fun MonsterSheet(initialMonster: MonsterDto, onSave: (MonsterDto) -> Unit) {
                 }
             }) {
                 P { Text("Copy this prompt and paste it into Gemini or an image generator:") }
-                TextArea(
-                    attrs = {
-                        style {
-                            width(100.percent)
-                            height(80.px)
-                            marginBottom(5.px)
+                TextArea {
+                    value(
+                        "1Generate a fantasy portrait of a D&D monster: ${monster.name} (${monster.meta}). " +
+                                "Armor Class: ${monster.armorClass}. Hit Points: ${monster.hitPoints}. Speed: ${monster.speed}. " +
+                                "Stats: STR ${monster.str}, DEX ${monster.dex}, CON ${monster.con}, INT ${monster.int}, WIS ${monster.wis}, CHA ${monster.cha}. " +
+                                "Traits: ${monster.traits.joinToString(", ") { "${it.name}: ${it.description}" }}. " +
+                                "Actions: ${monster.actions.joinToString(", ") { "${it.name}: ${it.description}" }}. " +
+                                "Style: Detailed, oil painting, dark fantasy."
+                    )
+                    style {
+                        width(100.percent)
+                        height(80.px)
+                        marginBottom(5.px)
+                    }
+                    readOnly()
+                    onPaste { event ->
+                        console.log("Paste event triggered")
+                        val items = event.clipboardData?.items
+                        if (items != null) {
+                            console.log("Clipboard items found: ${items.length}")
+                            for (i in 0 until items.length) {
+                                val item = items.asDynamic()[i] as? DataTransferItem
+                                console.log("Item $i type: ${item?.type}, kind: ${item?.kind}")
+                                if (item?.type?.startsWith("image") == true) {
+                                    console.log("Image item found")
+                                    val file = item.getAsFile()
+                                    if (file != null) {
+                                        console.log("File retrieved: ${file.name}, size: ${file.size}")
+                                        if (monster.id != null) {
+                                            console.log("Uploading image for monster ID: ${monster.id}")
+                                            scope.launch {
+                                                try {
+                                                    val updatedMonster = uploadMonsterImage(monster.id!!, file)
+                                                    console.log("Image uploaded successfully", updatedMonster)
+                                                    monster = updatedMonster
+                                                    showPrompt = false // Hide prompt after successful paste
+                                                } catch (e: Exception) {
+                                                    console.error("Failed to upload pasted image", e)
+                                                }
+                                            }
+                                        } else {
+                                            console.warn("Monster ID is null, cannot upload")
+                                            window.alert("Please save the monster first before pasting an image.")
+                                        }
+                                    } else {
+                                        console.error("Failed to get file from item")
+                                    }
+                                }
+                            }
+                        } else {
+                            console.log("No clipboard items found")
                         }
-                        readOnly()
-                    }, value =
-                        "Generate a fantasy portrait of a D&D monster: ${monster.name} (${monster.meta}). " +
-                        "Armor Class: ${monster.armorClass}. Hit Points: ${monster.hitPoints}. Speed: ${monster.speed}. " +
-                        "Stats: STR ${monster.str}, DEX ${monster.dex}, CON ${monster.con}, INT ${monster.int}, WIS ${monster.wis}, CHA ${monster.cha}. " +
-                        "Traits: ${monster.traits.joinToString(", ") { "${it.name}: ${it.description}" }}. " +
-                        "Actions: ${monster.actions.joinToString(", ") { "${it.name}: ${it.description}" }}. " +
-                        "Style: Detailed, oil painting, dark fantasy.")
+                    }
+                }
                 A(
                     href = "https://gemini.google.com/app",
                     attrs = { target(org.jetbrains.compose.web.attributes.ATarget.Blank) }) {
@@ -232,6 +306,61 @@ fun MonsterSheet(initialMonster: MonsterDto, onSave: (MonsterDto) -> Unit) {
             id("monster-sheet-content")
             classes(MonsterSheetStyle.sheetContainer)
         }) {
+            // Image Section
+            if (monster.imageUrl != null || isEditingEnabled) {
+                Div({
+                    style {
+                        display(DisplayStyle.Flex)
+                        justifyContent(JustifyContent.Center)
+                        marginBottom(20.px)
+                    }
+                }) {
+                    if (monster.imageUrl != null) {
+                        Img(src = "http://localhost:8090${monster.imageUrl}", alt = monster.name) {
+                            style {
+                                maxWidth(100.percent)
+                                maxHeight(300.px)
+                                border(2.px, LineStyle.Solid, Color("#58180d"))
+                                property("box-shadow", "0px 0px 10px rgba(0,0,0,0.5)")
+                            }
+                        }
+                    }
+
+                    if (isEditingEnabled) {
+                        Label(attrs = {
+                            style {
+                                display(DisplayStyle.Block)
+                                marginTop(10.px)
+                                cursor("pointer")
+                                color(Color.blue)
+                                textDecoration("underline")
+                            }
+                        }) {
+                            Text(if (monster.imageUrl == null) "Upload Image" else "Change Image")
+                            Input(InputType.File) {
+                                style { display(DisplayStyle.None) }
+                                accept("image/*")
+                                onChange { event ->
+                                    val file = (event.target as HTMLInputElement).files?.item(0)
+                                    if (file != null && monster.id != null) {
+                                        scope.launch {
+                                            try {
+                                                val updatedMonster = uploadMonsterImage(monster.id!!, file)
+                                                monster = updatedMonster
+                                            } catch (e: Exception) {
+                                                console.error("Failed to upload image", e)
+                                            }
+                                        }
+                                    } else if (monster.id == null) {
+                                        window.alert("Please save the monster first before uploading an image.")
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
             // Header Section
             Div({ classes(MonsterSheetStyle.header) }) {
                 EditableText(

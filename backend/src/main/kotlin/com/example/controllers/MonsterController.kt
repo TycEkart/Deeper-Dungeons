@@ -6,8 +6,14 @@ import com.example.shared.MonsterDto
 import com.example.shared.TraitDto
 import io.github.oshai.kotlinlogging.KotlinLogging
 import org.springframework.http.HttpStatus
+import org.springframework.http.MediaType
 import org.springframework.web.bind.annotation.*
+import org.springframework.web.client.RestClient
+import org.springframework.web.multipart.MultipartFile
 import org.springframework.web.server.ResponseStatusException
+import java.nio.file.Files
+import java.nio.file.Paths
+import java.nio.file.StandardCopyOption
 import kotlin.jvm.optionals.getOrNull
 
 private val log = KotlinLogging.logger {}
@@ -16,6 +22,7 @@ private val log = KotlinLogging.logger {}
 @RequestMapping("/monsters")
 class MonsterController(
     val repository: MonsterRepository,
+    val restClient: RestClient
 ) {
 
     @GetMapping
@@ -40,6 +47,50 @@ class MonsterController(
         log.info { "Saving monster: $monsterDto" }
         val entity = monsterDto.toEntity()
         val savedEntity = repository.save(entity)
+        return savedEntity.toDto()
+    }
+
+    @PostMapping(value = ["/{id}/image"], consumes = [MediaType.MULTIPART_FORM_DATA_VALUE])
+    fun uploadImage(@PathVariable id: Int, @RequestParam("file") file: MultipartFile): MonsterDto {
+        log.info { "Uploading image for monster id: $id" }
+        val monster = repository.findById(id).getOrNull()
+            ?: throw ResponseStatusException(HttpStatus.NOT_FOUND, "Monster not found")
+
+        val uploadDir = Paths.get("data/images")
+        if (!Files.exists(uploadDir)) {
+            Files.createDirectories(uploadDir)
+        }
+
+        val fileName = "monster_$id.${file.originalFilename?.substringAfterLast('.', "png") ?: "png"}"
+        val filePath = uploadDir.resolve(fileName)
+        Files.copy(file.inputStream, filePath, StandardCopyOption.REPLACE_EXISTING)
+
+        val updatedMonster = monster.copy(imageUrl = "/images/$fileName")
+        val savedEntity = repository.save(updatedMonster)
+        return savedEntity.toDto()
+    }
+
+    @PostMapping("/{id}/image-url")
+    fun uploadImageUrl(@PathVariable id: Int, @RequestBody imageUrl: String): MonsterDto {
+        log.info { "Uploading image from URL for monster id: $id, url: $imageUrl" }
+        val monster = repository.findById(id).getOrNull()
+            ?: throw ResponseStatusException(HttpStatus.NOT_FOUND, "Monster not found")
+
+        val uploadDir = Paths.get("data/images")
+        if (!Files.exists(uploadDir)) {
+            Files.createDirectories(uploadDir)
+        }
+
+        // Download the image
+        val imageBytes = restClient.get().uri(imageUrl).retrieve().body(ByteArray::class.java)
+            ?: throw ResponseStatusException(HttpStatus.BAD_REQUEST, "Could not download image")
+
+        val fileName = "monster_$id.png" // Defaulting to png, could try to detect from content-type
+        val filePath = uploadDir.resolve(fileName)
+        Files.write(filePath, imageBytes)
+
+        val updatedMonster = monster.copy(imageUrl = "/images/$fileName")
+        val savedEntity = repository.save(updatedMonster)
         return savedEntity.toDto()
     }
 

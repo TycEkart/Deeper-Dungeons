@@ -23,6 +23,7 @@ data class MonsterEntity(
     val senses: String = "",
     val languages: String = "",
     val challenge: String = "",
+    val imageUrl: String? = null,
     
     @ElementCollection
     val traits: List<TraitEmbeddable> = emptyList(),
@@ -48,6 +49,7 @@ data class MonsterEntity(
         senses = senses,
         languages = languages,
         challenge = challenge,
+        imageUrl = imageUrl,
         traits = traits.map { it.toDto() },
         actions = actions.map { it.toDto() }
     )
@@ -80,6 +82,7 @@ fun MonsterDto.toEntity() = MonsterEntity(
     senses = senses,
     languages = languages,
     challenge = challenge,
+    imageUrl = imageUrl,
     traits = traits.map { TraitEmbeddable(it.name, it.description) },
     actions = actions.map { TraitEmbeddable(it.name, it.description) }
 )

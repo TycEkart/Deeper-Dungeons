@@ -21,6 +21,7 @@ data class MonsterDto(
     val senses: String,
     val languages: String,
     val challenge: String,
+    val imageUrl: String? = null,
     val traits: List<TraitDto> = emptyList(),
     val actions: List<TraitDto> = emptyList()
 )
