@@ -8,9 +8,7 @@ import org.springframework.web.bind.annotation.RestController
 private val log = KotlinLogging.logger {}
 
 @RestController
-class HealthCheck(
-    private val tempRepository: TempRepository
-) {
+class HealthCheck {
 
     @GetMapping("/healthCheck")
     fun healthCheck(@RequestParam postcode: String, @RequestParam houseNumber: Int): String {
