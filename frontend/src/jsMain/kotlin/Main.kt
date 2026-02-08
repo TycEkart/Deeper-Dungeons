@@ -2,6 +2,8 @@ import androidx.compose.runtime.*
 import com.example.shared.MonsterDto
 import com.example.shared.TraitDto
 import kotlinx.coroutines.launch
+import org.jetbrains.compose.web.attributes.readOnly
+import org.jetbrains.compose.web.attributes.target
 import org.jetbrains.compose.web.css.*
 import org.jetbrains.compose.web.dom.*
 import org.jetbrains.compose.web.renderComposable
@@ -12,45 +14,104 @@ import org.w3c.dom.HTMLElement
 fun main() {
     renderComposable(rootElementId = "root") {
         Style(MonsterSheetStyle)
-        var monster by remember { mutableStateOf<MonsterDto?>(null) }
-        val scope = rememberCoroutineScope()
 
-        // Simple way to get ID from URL query param ?id=1
+        // Simple routing based on URL query param
         val urlParams = org.w3c.dom.url.URLSearchParams(window.location.search)
         val monsterId = urlParams.get("id")?.toIntOrNull()
 
-        LaunchedEffect(monsterId) {
-            scope.launch {
-                try {
-                    monster = fetchMonster(monsterId)
-                } catch (e: Exception) {
-                    console.error("Failed to fetch monster", e)
-                }
+        if (monsterId != null) {
+            MonsterDetail(monsterId)
+        } else {
+            MonsterList()
+        }
+    }
+}
+
+@Composable
+fun MonsterList() {
+    var monsters by remember { mutableStateOf<List<MonsterDto>>(emptyList()) }
+    val scope = rememberCoroutineScope()
+
+    LaunchedEffect(Unit) {
+        scope.launch {
+            try {
+                monsters = fetchAllMonsters()
+            } catch (e: Exception) {
+                console.error("Failed to fetch monsters", e)
             }
         }
+    }
 
-        if (monster != null) {
-            MonsterSheet(monster!!) { newMonster ->
-                monster = newMonster
-                
-                scope.launch {
-                    try {
-                        val savedMonster = saveMonster(newMonster)
-                        monster = savedMonster
-                        // Update URL if it was a new monster
-                        if (monsterId == null && savedMonster.id != null) {
-                            val newUrl = "${window.location.pathname}?id=${savedMonster.id}"
-                            window.history.pushState(null, "", newUrl)
-                        }
-                    } catch (e: Exception) {
-                        console.error("Failed to save monster", e)
+    Div({ classes(MonsterSheetStyle.mainContainer) }) {
+        H1 { Text("Deeper Dungeons - Monsters") }
+
+        Div({ style { display(DisplayStyle.Flex); flexDirection(FlexDirection.Column); gap(10.px) } }) {
+            monsters.forEach { monster ->
+                Div({
+                    style {
+                        padding(10.px)
+                        border(1.px, LineStyle.Solid, Color("#ccc"))
+                        borderRadius(5.px)
+                        cursor("pointer")
+                        backgroundColor(Color.white)
+                    }
+                    onClick {
+                        window.location.href = "?id=${monster.id}"
+                    }
+                }) {
+                    B { Text(monster.name) }
+                    Span({ style { marginLeft(10.px); color(Color.gray); fontSize(12.px) } }) {
+                        Text(monster.meta)
                     }
                 }
             }
-        } else {
-            Div({ style { padding(20.px) } }) {
-                Text("Loading monster...")
+
+            Button(attrs = {
+                style {
+                    marginTop(20.px)
+                    padding(10.px)
+                    cursor("pointer")
+                }
+                onClick {
+                    window.alert("Create new monster functionality to be implemented")
+                }
+            }) {
+                Text("Create New Monster")
             }
+        }
+    }
+}
+
+@Composable
+fun MonsterDetail(id: Int) {
+    var monster by remember { mutableStateOf<MonsterDto?>(null) }
+    val scope = rememberCoroutineScope()
+
+    LaunchedEffect(id) {
+        scope.launch {
+            try {
+                monster = fetchMonster(id)
+            } catch (e: Exception) {
+                console.error("Failed to fetch monster", e)
+            }
+        }
+    }
+
+    if (monster != null) {
+        MonsterSheet(monster!!) { newMonster ->
+            monster = newMonster
+            scope.launch {
+                try {
+                    val savedMonster = saveMonster(newMonster)
+                    monster = savedMonster
+                } catch (e: Exception) {
+                    console.error("Failed to save monster", e)
+                }
+            }
+        }
+    } else {
+        Div({ style { padding(20.px) } }) {
+            Text("Loading monster...")
         }
     }
 }
@@ -59,6 +120,7 @@ fun main() {
 fun MonsterSheet(initialMonster: MonsterDto, onSave: (MonsterDto) -> Unit) {
     var monster by remember { mutableStateOf(initialMonster) }
     var isEditingEnabled by remember { mutableStateOf(false) }
+    var showPrompt by remember { mutableStateOf(false) }
 
     // Update local state when initialMonster changes (e.g. after save)
     LaunchedEffect(initialMonster) {
@@ -66,14 +128,29 @@ fun MonsterSheet(initialMonster: MonsterDto, onSave: (MonsterDto) -> Unit) {
     }
 
     Div({ classes(MonsterSheetStyle.mainContainer) }) {
-        // Controls (ID & Edit Button) outside the sheet
+        // Controls (Back, ID & Edit Button) outside the sheet
         Div({ classes(MonsterSheetStyle.controlsContainer) }) {
-            Div {
-                if (monster.id != null) {
-                    Text("ID: ${monster.id}")
-                }
+            Div({
+                style { cursor("pointer"); textDecoration("underline") }
+                onClick { window.location.href = "/" }
+            }) {
+                Text("← Back to List")
             }
+
             Div({ style { display(DisplayStyle.Flex); gap(5.px) } }) {
+                Button(attrs = {
+                    style {
+                        fontSize(12.px)
+                        padding(5.px, 10.px)
+                        cursor("pointer")
+                    }
+                    onClick {
+                        showPrompt = !showPrompt
+                    }
+                }) {
+                    Text("Generate Portrait Prompt")
+                }
+
                 Button(attrs = {
                     style {
                         fontSize(12.px)
@@ -115,19 +192,60 @@ fun MonsterSheet(initialMonster: MonsterDto, onSave: (MonsterDto) -> Unit) {
             }
         }
 
+        if (showPrompt) {
+            Div({
+                style {
+                    backgroundColor(Color("#f0f0f0"))
+                    padding(10.px)
+                    marginBottom(10.px)
+                    border(1.px, LineStyle.Solid, Color("#ccc"))
+                    borderRadius(5.px)
+                    fontSize(12.px)
+                }
+            }) {
+                P { Text("Copy this prompt and paste it into Gemini or an image generator:") }
+                TextArea(
+                    attrs = {
+                        style {
+                            width(100.percent)
+                            height(80.px)
+                            marginBottom(5.px)
+                        }
+                        readOnly()
+                    }, value =
+                        "Generate a fantasy portrait of a D&D monster: ${monster.name} (${monster.meta}). " +
+                        "Armor Class: ${monster.armorClass}. Hit Points: ${monster.hitPoints}. Speed: ${monster.speed}. " +
+                        "Stats: STR ${monster.str}, DEX ${monster.dex}, CON ${monster.con}, INT ${monster.int}, WIS ${monster.wis}, CHA ${monster.cha}. " +
+                        "Traits: ${monster.traits.joinToString(", ") { "${it.name}: ${it.description}" }}. " +
+                        "Actions: ${monster.actions.joinToString(", ") { "${it.name}: ${it.description}" }}. " +
+                        "Style: Detailed, oil painting, dark fantasy.")
+                A(
+                    href = "https://gemini.google.com/app",
+                    attrs = { target(org.jetbrains.compose.web.attributes.ATarget.Blank) }) {
+                    Text("Open Gemini")
+                }
+            }
+        }
+
         // The Monster Sheet itself
-        Div({ 
+        Div({
             id("monster-sheet-content")
-            classes(MonsterSheetStyle.sheetContainer) 
+            classes(MonsterSheetStyle.sheetContainer)
         }) {
             // Header Section
             Div({ classes(MonsterSheetStyle.header) }) {
-                EditableText(monster.name, isEditingEnabled = isEditingEnabled, onValueChange = { monster = monster.copy(name = it) }) {
+                EditableText(
+                    monster.name,
+                    isEditingEnabled = isEditingEnabled,
+                    onValueChange = { monster = monster.copy(name = it) }) {
                     H1 { Text(monster.name) }
                 }
-                
+
                 Div({ classes(MonsterSheetStyle.subHeader) }) {
-                    EditableText(monster.meta, isEditingEnabled = isEditingEnabled, onValueChange = { monster = monster.copy(meta = it) }) {
+                    EditableText(
+                        monster.meta,
+                        isEditingEnabled = isEditingEnabled,
+                        onValueChange = { monster = monster.copy(meta = it) }) {
                         Text(monster.meta)
                     }
                 }
@@ -158,11 +276,17 @@ fun MonsterSheet(initialMonster: MonsterDto, onSave: (MonsterDto) -> Unit) {
 
             // Skills & Senses
             Div({ classes(MonsterSheetStyle.section) }) {
-                PropertyLine("Saving Throws", monster.savingThrows ?: "", isEditingEnabled) { monster = monster.copy(savingThrows = it) }
+                PropertyLine("Saving Throws", monster.savingThrows ?: "", isEditingEnabled) {
+                    monster = monster.copy(savingThrows = it)
+                }
                 PropertyLine("Skills", monster.skills ?: "", isEditingEnabled) { monster = monster.copy(skills = it) }
                 PropertyLine("Senses", monster.senses, isEditingEnabled) { monster = monster.copy(senses = it) }
-                PropertyLine("Languages", monster.languages, isEditingEnabled) { monster = monster.copy(languages = it) }
-                PropertyLine("Challenge", monster.challenge, isEditingEnabled) { monster = monster.copy(challenge = it) }
+                PropertyLine("Languages", monster.languages, isEditingEnabled) {
+                    monster = monster.copy(languages = it)
+                }
+                PropertyLine("Challenge", monster.challenge, isEditingEnabled) {
+                    monster = monster.copy(challenge = it)
+                }
             }
 
             Hr { }
@@ -171,10 +295,10 @@ fun MonsterSheet(initialMonster: MonsterDto, onSave: (MonsterDto) -> Unit) {
             Div({ classes(MonsterSheetStyle.section) }) {
                 monster.traits.forEachIndexed { index, trait ->
                     TraitBlock(
-                        trait.name, 
-                        trait.description, 
+                        trait.name,
+                        trait.description,
                         isEditingEnabled,
-                        onNameChange = { newName -> 
+                        onNameChange = { newName ->
                             val newTraits = monster.traits.toMutableList()
                             newTraits[index] = trait.copy(name = newName)
                             monster = monster.copy(traits = newTraits)
@@ -203,12 +327,12 @@ fun MonsterSheet(initialMonster: MonsterDto, onSave: (MonsterDto) -> Unit) {
             // Actions
             H3({ classes(MonsterSheetStyle.sectionHeader) }) { Text("Actions") }
             Div({ classes(MonsterSheetStyle.section) }) {
-                 monster.actions.forEachIndexed { index, action ->
+                monster.actions.forEachIndexed { index, action ->
                     TraitBlock(
-                        action.name, 
-                        action.description, 
+                        action.name,
+                        action.description,
                         isEditingEnabled,
-                        onNameChange = { newName -> 
+                        onNameChange = { newName ->
                             val newActions = monster.actions.toMutableList()
                             newActions[index] = action.copy(name = newName)
                             monster = monster.copy(actions = newActions)

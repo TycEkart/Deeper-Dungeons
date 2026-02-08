@@ -14,13 +14,18 @@ private val log = KotlinLogging.logger {}
 
 @RestController
 @RequestMapping("/monsters")
-class MonsterController(val repository: MonsterRepository) {
+class MonsterController(
+    val repository: MonsterRepository,
+) {
 
     @GetMapping
-    fun getMonster(): MonsterDto {
-        log.info { "Getting default monster" }
-        val monster = repository.findAll().firstOrNull()
-        return monster?.toDto() ?: createInitialMonster()
+    fun getAllMonsters(): List<MonsterDto> {
+        log.info { "Getting all monsters" }
+        val monsters = repository.findAll()
+        if (monsters.isEmpty()) {
+            return listOf(createInitialMonster())
+        }
+        return monsters.map { it.toDto() }
     }
 
     @GetMapping("/{id}")
