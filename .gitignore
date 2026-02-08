@@ -47,3 +47,5 @@ yarn-error.log
 *.hprof
 hs_err_pid*
 /data/*
+*.mv.db
+*.trace.db

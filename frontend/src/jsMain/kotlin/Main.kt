@@ -1,9 +1,11 @@
 import androidx.compose.runtime.*
-import org.jetbrains.compose.web.css.*
-import org.jetbrains.compose.web.dom.*
-import org.jetbrains.compose.web.renderComposable
 import com.example.shared.MonsterDto
 import kotlinx.coroutines.launch
+import org.jetbrains.compose.web.css.Style
+import org.jetbrains.compose.web.css.padding
+import org.jetbrains.compose.web.css.px
+import org.jetbrains.compose.web.dom.*
+import org.jetbrains.compose.web.renderComposable
 
 fun main() {
     renderComposable(rootElementId = "root") {
@@ -23,7 +25,19 @@ fun main() {
 
         if (monster != null) {
             MonsterSheet(monster!!) { newMonster ->
+                // Optimistic update
                 monster = newMonster
+                
+                // Save to backend
+                scope.launch {
+                    try {
+                        val savedMonster = saveMonster(newMonster)
+                        monster = savedMonster // Update with server response (e.g. generated ID)
+                    } catch (e: Exception) {
+                        console.error("Failed to save monster", e)
+                        // Optionally revert optimistic update or show error
+                    }
+                }
             }
         } else {
             Div({ style { padding(20.px) } }) {
@@ -36,12 +50,19 @@ fun main() {
 @Composable
 fun MonsterSheet(monster: MonsterDto, onUpdate: (MonsterDto) -> Unit) {
     Div({ classes(MonsterSheetStyle.container) }) {
+        // ID Label
+        if (monster.id != null) {
+            Div({ classes(MonsterSheetStyle.idLabel) }) {
+                Text("ID: ${monster.id}")
+            }
+        }
+
         // Header Section
         Div({ classes(MonsterSheetStyle.header) }) {
             EditableText(monster.name, onValueChange = { onUpdate(monster.copy(name = it)) }) {
                 H1 { Text(monster.name) }
             }
-
+            
             Div({ classes(MonsterSheetStyle.subHeader) }) {
                 EditableText(monster.meta, onValueChange = { onUpdate(monster.copy(meta = it)) }) {
                     Text(monster.meta)
@@ -87,9 +108,9 @@ fun MonsterSheet(monster: MonsterDto, onUpdate: (MonsterDto) -> Unit) {
         Div({ classes(MonsterSheetStyle.section) }) {
             monster.traits.forEachIndexed { index, trait ->
                 TraitBlock(
-                    trait.name,
-                    trait.description,
-                    onNameChange = { newName ->
+                    trait.name, 
+                    trait.description, 
+                    onNameChange = { newName -> 
                         val newTraits = monster.traits.toMutableList()
                         newTraits[index] = trait.copy(name = newName)
                         onUpdate(monster.copy(traits = newTraits))
@@ -106,11 +127,11 @@ fun MonsterSheet(monster: MonsterDto, onUpdate: (MonsterDto) -> Unit) {
         // Actions
         H3({ classes(MonsterSheetStyle.sectionHeader) }) { Text("Actions") }
         Div({ classes(MonsterSheetStyle.section) }) {
-            monster.actions.forEachIndexed { index, action ->
+             monster.actions.forEachIndexed { index, action ->
                 TraitBlock(
-                    action.name,
-                    action.description,
-                    onNameChange = { newName ->
+                    action.name, 
+                    action.description, 
+                    onNameChange = { newName -> 
                         val newActions = monster.actions.toMutableList()
                         newActions[index] = action.copy(name = newName)
                         onUpdate(monster.copy(actions = newActions))

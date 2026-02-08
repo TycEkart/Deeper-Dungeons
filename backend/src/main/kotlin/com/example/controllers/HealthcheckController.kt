@@ -1,6 +1,5 @@
 package com.example.controllers
 
-import com.example.repositories.TempRepository
 import io.github.oshai.kotlinlogging.KotlinLogging
 import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.RequestParam

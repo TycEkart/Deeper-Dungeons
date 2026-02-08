@@ -10,6 +10,16 @@ object MonsterSheetStyle : StyleSheet() {
         property("margin", "0 auto") // Center horizontally
         border(2.px, LineStyle.Solid, Color("#58180d"))
         property("box-shadow", "0px 0px 15px gray")
+        position(Position.Relative) // Needed for absolute positioning of children
+    }
+
+    val idLabel by style {
+        position(Position.Absolute)
+        top(5.px)
+        left(5.px)
+        fontSize(10.px)
+        color(Color("#999"))
+        fontFamily("monospace")
     }
 
     val header by style {

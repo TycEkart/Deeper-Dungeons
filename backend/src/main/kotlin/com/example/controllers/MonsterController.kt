@@ -1,22 +1,29 @@
 package com.example.controllers
 
-import com.example.repositories.TempRepository
+import com.example.repositories.MonsterRepository
+import com.example.repositories.toEntity
 import com.example.shared.MonsterDto
 import com.example.shared.TraitDto
-import io.github.oshai.kotlinlogging.KotlinLogging
-import org.springframework.web.bind.annotation.GetMapping
-import org.springframework.web.bind.annotation.RestController
-
-private val log = KotlinLogging.logger {}
+import org.springframework.web.bind.annotation.*
 
 @RestController
-class MonsterController(
-    private val tempRepository: TempRepository
-) {
+@RequestMapping("/monsters")
+class MonsterController(val repository: MonsterRepository) {
 
-    @GetMapping("/monsters")
-    fun retrieveMonster(): MonsterDto {
-        log.info { "retrieveMonster: " }
+    @GetMapping
+    fun getMonster(): MonsterDto {
+        val monster = repository.findAll().firstOrNull()
+        return monster?.toDto() ?: createInitialMonster()
+    }
+
+    @PutMapping
+    fun saveMonster(@RequestBody monsterDto: MonsterDto): MonsterDto {
+        val entity = monsterDto.toEntity()
+        val savedEntity = repository.save(entity)
+        return savedEntity.toDto()
+    }
+
+    private fun createInitialMonster(): MonsterDto {
         return MonsterDto(
             name = "Young Green Dragon",
             meta = "Large dragon, lawful evil",

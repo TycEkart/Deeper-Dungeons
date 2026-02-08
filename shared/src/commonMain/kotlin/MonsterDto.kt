@@ -4,6 +4,7 @@ import kotlinx.serialization.Serializable
 
 @Serializable
 data class MonsterDto(
+    val id: Int? = null,
     val name: String,
     val meta: String, // e.g., "Large dragon, chaotic evil"
     val armorClass: String,
