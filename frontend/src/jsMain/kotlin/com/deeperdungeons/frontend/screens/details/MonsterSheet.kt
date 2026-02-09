@@ -52,6 +52,16 @@ fun MonsterSheet(initialMonster: MonsterDto, onBack: () -> Unit, onSave: (Monste
         monster = initialMonster
     }
 
+    val portraitPrompt = """
+        Generate a fantasy portrait of a D&D monster: ${monster.name} (${monster.size.label} ${monster.type.label}, ${monster.alignment.label}).
+        Do not generate text based on this prompt!
+        Armor Class: ${monster.armorClass}. Hit Points: ${monster.hitPoints}. Speed: ${monster.speed}. 
+        Stats: STR ${monster.str.value}, DEX ${monster.dex.value}, CON ${monster.con.value}, INT ${monster.int.value}, WIS ${monster.wis.value}, CHA ${monster.cha.value}. 
+        Traits: ${monster.traits.joinToString(", ") { "${it.name}: ${it.description}" }}. 
+        Actions: ${monster.actions.joinToString(", ") { "${it.name}: ${it.description}" }}. 
+        Style: Detailed, oil painting, dark fantasy.
+    """.trimIndent().replace("\n", " ")
+
     Div({ classes(MonsterSheetStyle.mainContainer) }) {
         // Controls (Back, ID & Edit Button) outside the sheet
         Div({ classes(MonsterSheetStyle.controlsContainer) }) {
@@ -156,20 +166,27 @@ fun MonsterSheet(initialMonster: MonsterDto, onBack: () -> Unit, onSave: (Monste
                             }
                         }
                     },
-                    value = """
-                        Generate a fantasy portrait of a D&D monster: ${monster.name} (${monster.size.label} ${monster.type.label}, ${monster.alignment.label}).
-                        Do not generate text based on this prompt!
-                        Armor Class: ${monster.armorClass}. Hit Points: ${monster.hitPoints}. Speed: ${monster.speed}. 
-                        Stats: STR ${monster.str.value}, DEX ${monster.dex.value}, CON ${monster.con.value}, INT ${monster.int.value}, WIS ${monster.wis.value}, CHA ${monster.cha.value}. 
-                        Traits: ${monster.traits.joinToString(", ") { "${it.name}: ${it.description}" }}. 
-                        Actions: ${monster.actions.joinToString(", ") { "${it.name}: ${it.description}" }}. 
-                        Style: Detailed, oil painting, dark fantasy.
-                    """.trimIndent().replace("\n", " ")
+                    value = portraitPrompt
                 )
-                A(
-                    href = "https://gemini.google.com/app",
-                    attrs = { target(ATarget.Blank) }) {
-                    Text("Open Gemini")
+                
+                Div({ style { display(DisplayStyle.Flex); gap(10.px); marginTop(5.px) } }) {
+                    Button(attrs = {
+                        classes(MonsterSheetStyle.dndButton)
+                        onClick {
+                            window.navigator.clipboard.writeText(portraitPrompt)
+                            window.alert("Prompt copied to clipboard!")
+                        }
+                    }) { Text("Copy Prompt") }
+
+                    A(
+                        href = "https://gemini.google.com/app",
+                        attrs = { 
+                            target(ATarget.Blank)
+                            classes(MonsterSheetStyle.dndButton)
+                            style { textDecoration("none") }
+                        }) {
+                        Text("Open Gemini")
+                    }
                 }
                 
                 if (pastedImageUrl != null) {

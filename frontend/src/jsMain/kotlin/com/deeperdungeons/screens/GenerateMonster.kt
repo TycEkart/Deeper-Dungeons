@@ -21,8 +21,9 @@ fun GenerateMonster(onBack: () -> Unit, onCreated: (Int) -> Unit) {
     var jsonInput by remember { mutableStateOf("") }
     var monsterName by remember { mutableStateOf("") }
     var challengeRating by remember { mutableStateOf("") }
+    var description by remember { mutableStateOf("") }
     val scope = rememberCoroutineScope()
-    
+
     val exampleJson = remember {
         val example = MonsterDto(
             name = "Example Monster",
@@ -52,24 +53,25 @@ fun GenerateMonster(onBack: () -> Unit, onCreated: (Int) -> Unit) {
     }
 
     val prompt = """
-        Generate a Dungeons & Dragons 5e monster in JSON format.
-        ${if (monsterName.isNotBlank()) "Name: $monsterName" else ""}
-        ${if (challengeRating.isNotBlank()) "Challenge Rating: $challengeRating" else ""}
-        
-        Use the following JSON structure as a template. Ensure all fields are present.
-        For enums (size, type, alignment), use the exact string values shown in the example.
-        
-        Example JSON Structure:
-        $exampleJson
-        
-        Do not include the 'id' field.
-        The 'meta' field is computed, so do not include it.
-        Return ONLY the JSON object, no markdown formatting.
-    """.trimIndent()
+        |Generate a Dungeons & Dragons 5e monster in JSON format.
+        |${if (monsterName.isNotBlank()) "Name: $monsterName" else ""}
+        |${if (challengeRating.isNotBlank()) "Challenge Rating: $challengeRating" else ""}
+        |${if (description.isNotBlank()) "Description/Concept: $description" else ""}
+
+        |Use the following JSON structure as a template. Ensure all fields are present.
+        |For enums (size, type, alignment), use the exact string values shown in the example.
+
+        |Example JSON Structure:
+        |$exampleJson
+
+        |Do not include the 'id' field.
+        |The 'meta' field is computed, so do not include it.
+        |Return ONLY the JSON object, no markdown formatting.
+    """.trimMargin()
 
     Div({ classes(MonsterSheetStyle.listContainer) }) {
         Div({ classes(MonsterSheetStyle.controlsContainer) }) {
-             Div({ 
+            Div({
                 style { cursor("pointer"); textDecoration("underline") }
                 onClick { onBack() }
             }) {
@@ -80,10 +82,10 @@ fun GenerateMonster(onBack: () -> Unit, onCreated: (Int) -> Unit) {
         H1({ classes(MonsterSheetStyle.monsterName) }) { Text("Generate Monster with AI") }
 
         Div({ style { marginBottom(20.px) } }) {
-            P { Text("1. Enter Mandatory Details:") }
-            Div({ style { display(DisplayStyle.Flex); gap(20.px) } }) {
+            P { Text("1. Enter Details:") }
+            Div({ style { display(DisplayStyle.Flex); gap(20.px); marginBottom(10.px) } }) {
                 Div({ style { flex(1) } }) {
-                    Label { Text("Name:") }
+                    Label { Text("Name (Mandatory):") }
                     Input(InputType.Text) {
                         classes(MonsterSheetStyle.inputField)
                         value(monsterName)
@@ -92,7 +94,7 @@ fun GenerateMonster(onBack: () -> Unit, onCreated: (Int) -> Unit) {
                     }
                 }
                 Div({ style { flex(1) } }) {
-                    Label { Text("Challenge Rating:") }
+                    Label { Text("Challenge Rating (Mandatory):") }
                     Input(InputType.Text) {
                         classes(MonsterSheetStyle.inputField)
                         value(challengeRating)
@@ -101,6 +103,18 @@ fun GenerateMonster(onBack: () -> Unit, onCreated: (Int) -> Unit) {
                     }
                 }
             }
+            Div {
+                Label { Text("Description / Concept (Optional):") }
+                TextArea(
+                    value = description,
+                    attrs = {
+                        classes(MonsterSheetStyle.inputField)
+                        style { height(60.px) }
+                        placeholder("Describe the monster (e.g., 'A giant spider made of lava', 'A goblin wizard with a pet rat')")
+                        onInput { description = it.value }
+                    }
+                )
+            }
         }
 
         Div({ style { marginBottom(20.px) } }) {
@@ -108,7 +122,7 @@ fun GenerateMonster(onBack: () -> Unit, onCreated: (Int) -> Unit) {
             TextArea(
                 value = prompt,
                 attrs = {
-                    style { width(100.percent); height(200.px) }
+                    style { width(100.percent); height(100.px) }
                     readOnly()
                 }
             )
@@ -120,8 +134,8 @@ fun GenerateMonster(onBack: () -> Unit, onCreated: (Int) -> Unit) {
                         window.alert("Prompt copied to clipboard!")
                     }
                 }) { Text("Copy Prompt") }
-                
-                A(href = "https://gemini.google.com/app", attrs = { 
+
+                A(href = "https://gemini.google.com/app", attrs = {
                     target(ATarget.Blank)
                     classes(MonsterSheetStyle.dndButton)
                     style { textDecoration("none") }
@@ -136,12 +150,12 @@ fun GenerateMonster(onBack: () -> Unit, onCreated: (Int) -> Unit) {
             TextArea(
                 value = jsonInput,
                 attrs = {
-                    style { width(100.percent); height(200.px) }
+                    style { width(100.percent); height(100.px) }
                     placeholder("Paste JSON here...")
                     onInput { jsonInput = it.value }
                 }
             )
-            
+
             Button(attrs = {
                 classes(MonsterSheetStyle.dndButton)
                 style { marginTop(10.px) }
@@ -157,13 +171,13 @@ fun GenerateMonster(onBack: () -> Unit, onCreated: (Int) -> Unit) {
                             // Clean up potential markdown code blocks if the user pastes them
                             val cleanJson = jsonInput.replace("```json", "").replace("```", "").trim()
                             var monsterDto = json.decodeFromString<MonsterDto>(cleanJson)
-                            
+
                             // Override with mandatory fields
                             monsterDto = monsterDto.copy(
                                 name = monsterName,
                                 challenge = challengeRating
                             )
-                            
+
                             val savedMonster = saveMonster(monsterDto)
                             if (savedMonster.id != null) {
                                 onCreated(savedMonster.id!!)
