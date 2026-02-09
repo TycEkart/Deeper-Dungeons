@@ -224,12 +224,7 @@ fun MonsterSheet(initialMonster: MonsterDto, onSave: (MonsterDto) -> Unit) {
                     onClick {
                         val element = document.getElementById("monster-sheet-content") as? HTMLElement
                         if (element != null) {
-                            // Use html2canvas with useCORS: true to allow capturing cross-origin images
-                            val options = js("{}")
-                            options.useCORS = true
-                            options.allowTaint = true
-                            
-                            html2canvas(element, options).then { canvas ->
+                            html2canvas(element).then { canvas ->
                                 val link = document.createElement("a") as org.w3c.dom.HTMLAnchorElement
                                 link.download = "${monster.name.replace(" ", "_")}.png"
                                 link.href = (canvas as org.w3c.dom.HTMLCanvasElement).toDataURL()
@@ -559,16 +554,26 @@ fun MonsterSheet(initialMonster: MonsterDto, onSave: (MonsterDto) -> Unit) {
 
             // Skills & Senses
             Div({ classes(MonsterSheetStyle.section) }) {
-                PropertyLine("Saving Throws", monster.savingThrows ?: "", isEditingEnabled) {
-                    monster = monster.copy(savingThrows = it)
+                if (monster.savingThrows?.isNotBlank() == true || isEditingEnabled) {
+                    PropertyLine("Saving Throws", monster.savingThrows ?: "", isEditingEnabled) {
+                        monster = monster.copy(savingThrows = it)
+                    }
                 }
-                PropertyLine("Skills", monster.skills ?: "", isEditingEnabled) { monster = monster.copy(skills = it) }
-                PropertyLine("Senses", monster.senses, isEditingEnabled) { monster = monster.copy(senses = it) }
-                PropertyLine("Languages", monster.languages, isEditingEnabled) {
-                    monster = monster.copy(languages = it)
+                if (monster.skills?.isNotBlank() == true || isEditingEnabled) {
+                    PropertyLine("Skills", monster.skills ?: "", isEditingEnabled) { monster = monster.copy(skills = it) }
                 }
-                PropertyLine("Challenge", monster.challenge, isEditingEnabled) {
-                    monster = monster.copy(challenge = it)
+                if (monster.senses.isNotBlank() || isEditingEnabled) {
+                    PropertyLine("Senses", monster.senses, isEditingEnabled) { monster = monster.copy(senses = it) }
+                }
+                if (monster.languages.isNotBlank() || isEditingEnabled) {
+                    PropertyLine("Languages", monster.languages, isEditingEnabled) {
+                        monster = monster.copy(languages = it)
+                    }
+                }
+                if (monster.challenge.isNotBlank() || isEditingEnabled) {
+                    PropertyLine("Challenge", monster.challenge, isEditingEnabled) {
+                        monster = monster.copy(challenge = it)
+                    }
                 }
             }
 
@@ -608,35 +613,37 @@ fun MonsterSheet(initialMonster: MonsterDto, onSave: (MonsterDto) -> Unit) {
             }
 
             // Actions
-            H3({ classes(MonsterSheetStyle.sectionHeader) }) { Text("Actions") }
-            Div({ classes(MonsterSheetStyle.section) }) {
-                monster.actions.forEachIndexed { index, action ->
-                    TraitBlock(
-                        action.name,
-                        action.description,
-                        isEditingEnabled,
-                        onNameChange = { newName ->
+            if (monster.actions.isNotEmpty() || isEditingEnabled) {
+                H3({ classes(MonsterSheetStyle.sectionHeader) }) { Text("Actions") }
+                Div({ classes(MonsterSheetStyle.section) }) {
+                    monster.actions.forEachIndexed { index, action ->
+                        TraitBlock(
+                            action.name,
+                            action.description,
+                            isEditingEnabled,
+                            onNameChange = { newName ->
+                                val newActions = monster.actions.toMutableList()
+                                newActions[index] = action.copy(name = newName)
+                                monster = monster.copy(actions = newActions)
+                            },
+                            onDescChange = { newDesc ->
+                                val newActions = monster.actions.toMutableList()
+                                newActions[index] = action.copy(description = newDesc)
+                                monster = monster.copy(actions = newActions)
+                            },
+                            onDelete = {
+                                val newActions = monster.actions.toMutableList()
+                                newActions.removeAt(index)
+                                monster = monster.copy(actions = newActions)
+                            }
+                        )
+                    }
+                    if (isEditingEnabled) {
+                        AddButton("Add Action") {
                             val newActions = monster.actions.toMutableList()
-                            newActions[index] = action.copy(name = newName)
-                            monster = monster.copy(actions = newActions)
-                        },
-                        onDescChange = { newDesc ->
-                            val newActions = monster.actions.toMutableList()
-                            newActions[index] = action.copy(description = newDesc)
-                            monster = monster.copy(actions = newActions)
-                        },
-                        onDelete = {
-                            val newActions = monster.actions.toMutableList()
-                            newActions.removeAt(index)
+                            newActions.add(TraitDto("New Action", "Description"))
                             monster = monster.copy(actions = newActions)
                         }
-                    )
-                }
-                if (isEditingEnabled) {
-                    AddButton("Add Action") {
-                        val newActions = monster.actions.toMutableList()
-                        newActions.add(TraitDto("New Action", "Description"))
-                        monster = monster.copy(actions = newActions)
                     }
                 }
             }

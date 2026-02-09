@@ -44,11 +44,22 @@ fun EditableText(
                 style {
                     cursor("pointer")
                     property("text-decoration", "underline dotted #ccc")
+                    // Ensure empty fields are clickable in edit mode
+                    if (value.isBlank()) {
+                        display(DisplayStyle.InlineBlock)
+                        minWidth(50.px)
+                        backgroundColor(Color("#f0f0f0"))
+                        padding(2.px)
+                    }
                 }
                 title("Click to edit")
             }
         }) {
-            renderText()
+            if (value.isBlank() && isEditingEnabled) {
+                Text("[Empty]")
+            } else {
+                renderText()
+            }
         }
     }
 }
