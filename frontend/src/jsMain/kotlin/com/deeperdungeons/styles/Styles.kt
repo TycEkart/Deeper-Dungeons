@@ -3,6 +3,14 @@ package com.deeperdungeons.styles
 import org.jetbrains.compose.web.css.*
 
 object MonsterSheetStyle : StyleSheet() {
+    init {
+        "body" style {
+            backgroundColor(Color("#1a1a1a")) // Dark background for the whole page
+            margin(0.px)
+            padding(20.px) // Add some padding so the sheet doesn't touch edges
+        }
+    }
+
     val mainContainer by style {
         maxWidth(800.px)
         property("margin", "0 auto") // Center horizontally
@@ -17,7 +25,26 @@ object MonsterSheetStyle : StyleSheet() {
         padding(0.px, 5.px)
         fontFamily("sans-serif")
         fontSize(12.px)
-        color(Color("#666"))
+        color(Color("#ccc")) // Lighter text for controls on dark background
+    }
+
+    val dndButton by style {
+        backgroundColor(Color("#fdf1dc")) // Same as sheet background
+        color(Color("#58180d"))
+        border(2.px, LineStyle.Solid, Color("#58180d"))
+        borderRadius(5.px)
+        padding(5.px, 10.px)
+        fontFamily("Book Antiqua", "Palatino Linotype", "Palatino", "serif")
+        fontWeight("bold")
+        fontSize(12.px)
+        property("font-variant", "small-caps")
+        cursor("pointer")
+        property("transition", "all 0.2s ease")
+
+        hover {
+            backgroundColor(Color("#58180d"))
+            color(Color("#fdf1dc"))
+        }
     }
 
     val sheetContainer by style {
@@ -25,12 +52,51 @@ object MonsterSheetStyle : StyleSheet() {
         backgroundColor(Color("#fdf1dc")) // Parchment color
         color(Color("#58180d")) // Dark reddish brown
         padding(20.px)
-        property("box-shadow", "0px 0px 15px rgba(0,0,0,0.2)")
+        property("box-shadow", "0px 0px 15px rgba(0,0,0,0.5)") // Darker shadow
         
         // D&D 5e Stat Block Border Style
         border(1.px, LineStyle.Solid, Color("#d4d4d4"))
         property("border-top", "5px solid #58180d")
         property("border-bottom", "5px solid #58180d")
+    }
+
+    val listContainer by style {
+        maxWidth(500.px) // Narrower list
+        property("margin", "0 auto") // Center horizontally
+        fontFamily("Book Antiqua", "Palatino Linotype", "Palatino", "serif")
+        backgroundColor(Color("#fdf1dc")) // Parchment color
+        color(Color("#58180d")) // Dark reddish brown
+        padding(20.px)
+        property("box-shadow", "0px 0px 15px rgba(0,0,0,0.5)") // Darker shadow
+        border(1.px, LineStyle.Solid, Color("#d4d4d4"))
+        property("border-top", "5px solid #58180d")
+        property("border-bottom", "5px solid #58180d")
+        
+        // Add a subtle texture or gradient to make it look more like paper
+        property("background-image", "url('https://www.transparenttextures.com/patterns/aged-paper.png')")
+    }
+
+    val listItem by style {
+        padding(10.px)
+        border(1.px, LineStyle.Solid, Color("#d4d4d4"))
+        borderRadius(5.px)
+        cursor("pointer")
+        backgroundColor(Color.white)
+        display(DisplayStyle.Flex)
+        alignItems(AlignItems.Center)
+        gap(10.px)
+        marginBottom(10.px)
+        property("transition", "all 0.2s ease")
+        
+        // Make list items slightly transparent to blend with parchment
+        backgroundColor(Color("rgba(255, 255, 255, 0.6)"))
+        border(1.px, LineStyle.Solid, Color("#58180d"))
+
+        hover {
+            backgroundColor(Color("rgba(255, 255, 255, 0.9)"))
+            property("transform", "translateX(5px)")
+            property("box-shadow", "2px 2px 5px rgba(0,0,0,0.1)")
+        }
     }
 
     val header by style {

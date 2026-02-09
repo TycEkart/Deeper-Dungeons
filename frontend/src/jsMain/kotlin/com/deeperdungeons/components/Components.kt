@@ -1,6 +1,7 @@
 package com.deeperdungeons.components
 
 import androidx.compose.runtime.*
+import com.example.shared.StatDto
 import org.jetbrains.compose.web.attributes.InputType
 import org.jetbrains.compose.web.css.*
 import org.jetbrains.compose.web.dom.*
@@ -37,7 +38,10 @@ fun EditableText(
                     onKeyDown { if (it.key == "Enter") isEditing = false }
                 }
             }
-            Button(attrs = { onClick { isEditing = false } }) { Text("OK") }
+            Button(attrs = { 
+                classes(MonsterSheetStyle.dndButton)
+                onClick { isEditing = false } 
+            }) { Text("OK") }
         }
     } else {
         Span({
@@ -77,11 +81,25 @@ fun StatBox(label: String, value: String, isEditingEnabled: Boolean, onValueChan
 }
 
 @Composable
-fun AbilityScore(name: String, value: String, isEditingEnabled: Boolean, onValueChange: (String) -> Unit) {
+fun AbilityScore(name: String, stat: StatDto, isEditingEnabled: Boolean, onValueChange: (StatDto) -> Unit) {
     Div({ classes(MonsterSheetStyle.abilityScore) }) {
         Div({ classes(MonsterSheetStyle.abilityScoreLabel) }) { Text(name) }
-        EditableText(value, isEditingEnabled = isEditingEnabled, onValueChange = onValueChange) {
-            Div { Text(value) }
+        
+        if (isEditingEnabled) {
+            Input(InputType.Number) {
+                classes(MonsterSheetStyle.inputField)
+                style { textAlign("center"); width(50.px) }
+                value(stat.value)
+                onInput { event ->
+                    val newValue = event.value?.toString()?.toIntOrNull() ?: 10
+                    // Modifier is calculated on backend, but for immediate UI feedback we can approximate or wait for save
+                    // Here we just update the value, the modifier will be updated on save/reload or we can calc locally
+                    val newModifier = kotlin.math.floor((newValue - 10) / 2.0).toInt()
+                    onValueChange(StatDto(newValue, newModifier))
+                }
+            }
+        } else {
+            Div { Text("${stat.value} (${if (stat.modifier >= 0) "+" else ""}${stat.modifier})") }
         }
     }
 }
@@ -141,10 +159,9 @@ fun TaperedRule() {
 @Composable
 fun AddButton(label: String, onClick: () -> Unit) {
     Button(attrs = {
+        classes(MonsterSheetStyle.dndButton)
         style {
             marginTop(5.px)
-            fontSize(12.px)
-            cursor("pointer")
         }
         onClick { onClick() }
     }) {

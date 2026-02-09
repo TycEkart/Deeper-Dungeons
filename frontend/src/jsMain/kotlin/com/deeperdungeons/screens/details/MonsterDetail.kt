@@ -9,7 +9,7 @@ import com.deeperdungeons.api.fetchMonster
 import com.deeperdungeons.api.saveMonster
 
 @Composable
-fun MonsterDetail(id: Int) {
+fun MonsterDetail(id: Int, onBack: () -> Unit) {
     var monster by remember { mutableStateOf<MonsterDto?>(null) }
     val scope = rememberCoroutineScope()
 
@@ -24,7 +24,7 @@ fun MonsterDetail(id: Int) {
     }
 
     if (monster != null) {
-        MonsterSheet(monster!!) { newMonster ->
+        MonsterSheet(monster!!, onBack = onBack) { newMonster ->
             monster = newMonster
             scope.launch {
                 try {

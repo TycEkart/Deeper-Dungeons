@@ -1,23 +1,29 @@
 package com.example.repositories
 
-import com.example.shared.MonsterDto
-import com.example.shared.TraitDto
+import com.example.shared.*
 import jakarta.persistence.*
+import kotlin.math.floor
 
 @Entity
 data class MonsterEntity(
     @Id @GeneratedValue(strategy = GenerationType.IDENTITY) val id: Int? = null,
     val name: String = "",
-    val meta: String = "",
-    val armorClass: String = "",
+    @Enumerated(EnumType.STRING)
+    val size: MonsterSize = MonsterSize.Medium,
+    @Enumerated(EnumType.STRING)
+    val type: MonsterType = MonsterType.Humanoid,
+    @Enumerated(EnumType.STRING)
+    val alignment: Alignment = Alignment.Unaligned,
+    val armorClassValue: Int = 10,
+    val armorClassDescription: String? = null,
     val hitPoints: String = "",
     val speed: String = "",
-    val str: String = "",
-    val dex: String = "",
-    val con: String = "",
-    val intVal: String = "", // 'int' is a reserved keyword in SQL/Kotlin
-    val wis: String = "",
-    val cha: String = "",
+    val str: Int = 10,
+    val dex: Int = 10,
+    val con: Int = 10,
+    val intVal: Int = 10, // 'int' is a reserved keyword in SQL/Kotlin
+    val wis: Int = 10,
+    val cha: Int = 10,
     val savingThrows: String? = null,
     val skills: String? = null,
     val senses: String = "",
@@ -33,30 +39,38 @@ data class MonsterEntity(
     @ElementCollection
     val actions: List<TraitEmbeddable> = emptyList()
 ) {
-    fun toDto() = MonsterDto(
-        id = id,
-        name = name,
-        meta = meta,
-        armorClass = armorClass,
-        hitPoints = hitPoints,
-        speed = speed,
-        str = str,
-        dex = dex,
-        con = con,
-        int = intVal,
-        wis = wis,
-        cha = cha,
-        savingThrows = savingThrows,
-        skills = skills,
-        senses = senses,
-        languages = languages,
-        challenge = challenge,
-        imageUrl = imageUrl,
-        imagePosition = imagePosition,
-        imageScale = imageScale,
-        traits = traits.map { it.toDto() },
-        actions = actions.map { it.toDto() }
-    )
+    fun toDto(): MonsterDto {
+        fun calculateModifier(score: Int): Int {
+            return floor((score - 10) / 2.0).toInt()
+        }
+
+        return MonsterDto(
+            id = id,
+            name = name,
+            size = size,
+            type = type,
+            alignment = alignment,
+            armorClass = ArmorClassDto(armorClassValue, armorClassDescription),
+            hitPoints = hitPoints,
+            speed = speed,
+            str = StatDto(str, calculateModifier(str)),
+            dex = StatDto(dex, calculateModifier(dex)),
+            con = StatDto(con, calculateModifier(con)),
+            int = StatDto(intVal, calculateModifier(intVal)),
+            wis = StatDto(wis, calculateModifier(wis)),
+            cha = StatDto(cha, calculateModifier(cha)),
+            savingThrows = savingThrows,
+            skills = skills,
+            senses = senses,
+            languages = languages,
+            challenge = challenge,
+            imageUrl = imageUrl,
+            imagePosition = imagePosition,
+            imageScale = imageScale,
+            traits = traits.map { it.toDto() },
+            actions = actions.map { it.toDto() }
+        )
+    }
 }
 
 @Embeddable
@@ -71,16 +85,19 @@ data class TraitEmbeddable(
 fun MonsterDto.toEntity() = MonsterEntity(
     id = id,
     name = name,
-    meta = meta,
-    armorClass = armorClass,
+    size = size,
+    type = type,
+    alignment = alignment,
+    armorClassValue = armorClass.value,
+    armorClassDescription = armorClass.description,
     hitPoints = hitPoints,
     speed = speed,
-    str = str,
-    dex = dex,
-    con = con,
-    intVal = int,
-    wis = wis,
-    cha = cha,
+    str = str.value,
+    dex = dex.value,
+    con = con.value,
+    intVal = int.value,
+    wis = wis.value,
+    cha = cha.value,
     savingThrows = savingThrows,
     skills = skills,
     senses = senses,

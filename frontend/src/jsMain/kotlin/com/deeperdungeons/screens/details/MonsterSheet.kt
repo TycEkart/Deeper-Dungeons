@@ -1,8 +1,7 @@
 package com.deeperdungeons.screens.details
 
 import androidx.compose.runtime.*
-import com.example.shared.MonsterDto
-import com.example.shared.TraitDto
+import com.example.shared.*
 import kotlinx.coroutines.launch
 import org.jetbrains.compose.web.attributes.InputType
 import org.jetbrains.compose.web.attributes.accept
@@ -13,6 +12,7 @@ import org.jetbrains.compose.web.dom.*
 import kotlinx.browser.document
 import kotlinx.browser.window
 import org.jetbrains.compose.web.attributes.ATarget
+import org.jetbrains.compose.web.attributes.selected
 import org.w3c.dom.DataTransferItem
 import org.w3c.dom.HTMLAnchorElement
 import org.w3c.dom.HTMLCanvasElement
@@ -30,9 +30,10 @@ import com.deeperdungeons.components.StatBox
 import com.deeperdungeons.components.TaperedRule
 import com.deeperdungeons.components.TraitBlock
 import com.deeperdungeons.components.html2canvas
+import org.jetbrains.compose.web.attributes.placeholder
 
 @Composable
-fun MonsterSheet(initialMonster: MonsterDto, onSave: (MonsterDto) -> Unit) {
+fun MonsterSheet(initialMonster: MonsterDto, onBack: () -> Unit, onSave: (MonsterDto) -> Unit) {
     var monster by remember { mutableStateOf(initialMonster) }
     var isEditingEnabled by remember { mutableStateOf(false) }
     var showPrompt by remember { mutableStateOf(false) }
@@ -50,18 +51,14 @@ fun MonsterSheet(initialMonster: MonsterDto, onSave: (MonsterDto) -> Unit) {
         Div({ classes(MonsterSheetStyle.controlsContainer) }) {
             Div({ 
                 style { cursor("pointer"); textDecoration("underline") }
-                onClick { window.location.href = "/" }
+                onClick { onBack() }
             }) {
                 Text("← Back to List")
             }
             
             Div({ style { display(DisplayStyle.Flex); gap(5.px) } }) {
                 Button(attrs = {
-                    style {
-                        fontSize(12.px)
-                        padding(5.px, 10.px)
-                        cursor("pointer")
-                    }
+                    classes(MonsterSheetStyle.dndButton)
                     onClick {
                         showPrompt = !showPrompt
                         pastedImageFile = null
@@ -72,11 +69,7 @@ fun MonsterSheet(initialMonster: MonsterDto, onSave: (MonsterDto) -> Unit) {
                 }
 
                 Button(attrs = {
-                    style {
-                        fontSize(12.px)
-                        padding(5.px, 10.px)
-                        cursor("pointer")
-                    }
+                    classes(MonsterSheetStyle.dndButton)
                     onClick {
                         val element = document.getElementById("monster-sheet-content") as? HTMLElement
                         if (element != null) {
@@ -98,11 +91,7 @@ fun MonsterSheet(initialMonster: MonsterDto, onSave: (MonsterDto) -> Unit) {
                 }
 
                 Button(attrs = {
-                    style {
-                        fontSize(12.px)
-                        padding(5.px, 10.px)
-                        cursor("pointer")
-                    }
+                    classes(MonsterSheetStyle.dndButton)
                     onClick {
                         if (isEditingEnabled) {
                             // Save when clicking "Done"
@@ -165,7 +154,7 @@ fun MonsterSheet(initialMonster: MonsterDto, onSave: (MonsterDto) -> Unit) {
                         Generate a fantasy portrait of a D&D monster: ${monster.name} (${monster.meta}).
                         Do not generate text based on this prompt!
                         Armor Class: ${monster.armorClass}. Hit Points: ${monster.hitPoints}. Speed: ${monster.speed}. 
-                        Stats: STR ${monster.str}, DEX ${monster.dex}, CON ${monster.con}, INT ${monster.int}, WIS ${monster.wis}, CHA ${monster.cha}. 
+                        Stats: STR ${monster.str.value}, DEX ${monster.dex.value}, CON ${monster.con.value}, INT ${monster.int.value}, WIS ${monster.wis.value}, CHA ${monster.cha.value}. 
                         Traits: ${monster.traits.joinToString(", ") { "${it.name}: ${it.description}" }}. 
                         Actions: ${monster.actions.joinToString(", ") { "${it.name}: ${it.description}" }}. 
                         Style: Detailed, oil painting, dark fantasy.
@@ -191,6 +180,7 @@ fun MonsterSheet(initialMonster: MonsterDto, onSave: (MonsterDto) -> Unit) {
                         }
                         Div({ style { display(DisplayStyle.Flex); gap(10.px); marginTop(5.px) } }) {
                             Button(attrs = {
+                                classes(MonsterSheetStyle.dndButton)
                                 onClick {
                                     if (pastedImageFile != null && monster.id != null) {
                                         scope.launch {
@@ -214,6 +204,7 @@ fun MonsterSheet(initialMonster: MonsterDto, onSave: (MonsterDto) -> Unit) {
                             }) { Text("Save Image") }
                             
                             Button(attrs = {
+                                classes(MonsterSheetStyle.dndButton)
                                 onClick {
                                     pastedImageFile = null
                                     pastedImageUrl = null
@@ -419,10 +410,68 @@ fun MonsterSheet(initialMonster: MonsterDto, onSave: (MonsterDto) -> Unit) {
                 }
                 
                 Div({ classes(MonsterSheetStyle.subHeader) }) {
-                    EditableText(
-                        monster.meta,
-                        isEditingEnabled = isEditingEnabled,
-                        onValueChange = { monster = monster.copy(meta = it) }) {
+                    if (isEditingEnabled) {
+                        Div({ style { display(DisplayStyle.Flex); gap(5.px); alignItems(AlignItems.Center); flexWrap(FlexWrap.Wrap) } }) {
+                            // Size Dropdown
+                            Select({
+                                classes(MonsterSheetStyle.inputField)
+                                style { width(100.px); margin(0.px) }
+                                onInput { event ->
+                                    val value = event.value
+                                    val newSize = MonsterSize.values().find { it.name == value } ?: MonsterSize.Medium
+                                    monster = monster.copy(size = newSize)
+                                }
+                            }) {
+                                MonsterSize.values().forEach { size ->
+                                    Option(size.name, attrs = {
+                                        if (size == monster.size) selected()
+                                    }) {
+                                        Text(size.label)
+                                    }
+                                }
+                            }
+                            
+                            // Type Dropdown
+                            Select({
+                                classes(MonsterSheetStyle.inputField)
+                                style { width(120.px); margin(0.px) }
+                                onInput { event ->
+                                    val value = event.value
+                                    val newType = MonsterType.values().find { it.name == value } ?: MonsterType.Humanoid
+                                    monster = monster.copy(type = newType)
+                                }
+                            }) {
+                                MonsterType.values().forEach { type ->
+                                    Option(type.name, attrs = {
+                                        if (type == monster.type) selected()
+                                    }) {
+                                        Text(type.label)
+                                    }
+                                }
+                            }
+                            
+                            Text(", ")
+                            
+                            // Alignment Dropdown
+                            Select({
+                                classes(MonsterSheetStyle.inputField)
+                                style { width(150.px); margin(0.px) }
+                                onInput { event ->
+                                    val value = event.value
+                                    val newAlignment = Alignment.values().find { it.name == value } ?: Alignment.Unaligned
+                                    monster = monster.copy(alignment = newAlignment)
+                                }
+                            }) {
+                                Alignment.values().forEach { alignment ->
+                                    Option(alignment.name, attrs = {
+                                        if (alignment == monster.alignment) selected()
+                                    }) {
+                                        Text(alignment.label)
+                                    }
+                                }
+                            }
+                        }
+                    } else {
                         Text(monster.meta)
                     }
                 }
@@ -432,7 +481,36 @@ fun MonsterSheet(initialMonster: MonsterDto, onSave: (MonsterDto) -> Unit) {
 
             // Stats Block
             Div({ classes(MonsterSheetStyle.statsGrid) }) {
-                StatBox("Armor Class", monster.armorClass, isEditingEnabled) { monster = monster.copy(armorClass = it) }
+                // Armor Class Editor
+                Div({ classes(MonsterSheetStyle.propertyLine) }) {
+                    Span({ classes(MonsterSheetStyle.propertyLabel) }) { Text("Armor Class ") }
+                    if (isEditingEnabled) {
+                        Div({ style { display(DisplayStyle.Flex); gap(5.px); alignItems(AlignItems.Center) } }) {
+                            Input(InputType.Number) {
+                                classes(MonsterSheetStyle.inputField)
+                                style { width(60.px); margin(0.px) }
+                                value(monster.armorClass.value)
+                                onInput { event ->
+                                    val newVal = event.value?.toString()?.toIntOrNull() ?: 10
+                                    monster = monster.copy(armorClass = monster.armorClass.copy(value = newVal))
+                                }
+                            }
+                            Input(InputType.Text) {
+                                classes(MonsterSheetStyle.inputField)
+                                style { width(150.px); margin(0.px) }
+                                placeholder("(description)") //todo ? check thijs
+                                value(monster.armorClass.description ?: "")
+                                onInput { event ->
+                                    val newDesc = event.value
+                                    monster = monster.copy(armorClass = monster.armorClass.copy(description = if (newDesc.isBlank()) null else newDesc))
+                                }
+                            }
+                        }
+                    } else {
+                        Text(monster.armorClass.toString())
+                    }
+                }
+                
                 StatBox("Hit Points", monster.hitPoints, isEditingEnabled) { monster = monster.copy(hitPoints = it) }
                 StatBox("Speed", monster.speed, isEditingEnabled) { monster = monster.copy(speed = it) }
             }
@@ -453,16 +531,20 @@ fun MonsterSheet(initialMonster: MonsterDto, onSave: (MonsterDto) -> Unit) {
 
             // Skills & Senses
             Div({ classes(MonsterSheetStyle.section) }) {
-                if (monster.savingThrows?.isNotBlank() == true || isEditingEnabled) {
-                    PropertyLine("Saving Throws", monster.savingThrows ?: "", isEditingEnabled) {
-                        monster = monster.copy(savingThrows = it)
-                    }
-                }
-                if (monster.skills?.isNotBlank() == true || isEditingEnabled) {
-                    PropertyLine("Skills", monster.skills ?: "", isEditingEnabled) {
-                        monster = monster.copy(skills = it)
-                    }
-                }
+                // Saving Throws Section with Custom Editor
+                SavingThrowEditor(
+                    savingThrows = monster.savingThrows ?: "",
+                    isEditingEnabled = isEditingEnabled,
+                    onValueChange = { monster = monster.copy(savingThrows = it) }
+                )
+                
+                // Skills Section with Custom Editor
+                SkillEditor(
+                    skills = monster.skills ?: "",
+                    isEditingEnabled = isEditingEnabled,
+                    onValueChange = { monster = monster.copy(skills = it) }
+                )
+
                 if (monster.senses.isNotBlank() || isEditingEnabled) {
                     PropertyLine("Senses", monster.senses, isEditingEnabled) { monster = monster.copy(senses = it) }
                 }
@@ -548,6 +630,208 @@ fun MonsterSheet(initialMonster: MonsterDto, onSave: (MonsterDto) -> Unit) {
                     }
                 }
             }
+        }
+    }
+}
+
+@Composable
+fun SavingThrowEditor(
+    savingThrows: String,
+    isEditingEnabled: Boolean,
+    onValueChange: (String) -> Unit
+) {
+    if (isEditingEnabled) {
+        Div({ classes(MonsterSheetStyle.propertyLine) }) {
+            Span({ classes(MonsterSheetStyle.propertyLabel) }) { Text("Saving Throws ") }
+            
+            Div({ style { display(DisplayStyle.Flex); flexDirection(FlexDirection.Column); gap(5.px) } }) {
+                // List of current saving throws
+                if (savingThrows.isNotBlank()) {
+                    Div({ style { display(DisplayStyle.Flex); flexWrap(FlexWrap.Wrap); gap(5.px) } }) {
+                        savingThrows.split(",").map { it.trim() }.filter { it.isNotBlank() }.forEach { saveStr ->
+                            Div({
+                                style {
+                                    backgroundColor(Color("#eee"))
+                                    padding(2.px, 6.px)
+                                    borderRadius(4.px)
+                                    border(1.px, LineStyle.Solid, Color("#ccc"))
+                                    display(DisplayStyle.Flex)
+                                    alignItems(AlignItems.Center)
+                                    gap(5.px)
+                                    fontSize(12.px)
+                                }
+                            }) {
+                                Text(saveStr)
+                                Span({
+                                    style { 
+                                        cursor("pointer")
+                                        color(Color("#58180d"))
+                                        fontWeight("bold")
+                                        marginLeft(2.px)
+                                    }
+                                    onClick {
+                                        val currentList = savingThrows.split(",").map { it.trim() }.filter { it.isNotBlank() }
+                                        val newList = currentList.filter { it != saveStr }
+                                        onValueChange(newList.joinToString(", "))
+                                    }
+                                    title("Remove saving throw")
+                                }) { Text("×") }
+                            }
+                        }
+                    }
+                }
+
+                // Add new saving throw controls
+                var selectedStat by remember { mutableStateOf(Stat.STR) }
+                var bonus by remember { mutableStateOf(0) }
+
+                Div({ style { display(DisplayStyle.Flex); gap(5.px); alignItems(AlignItems.Center) } }) {
+                    Select({
+                        classes(MonsterSheetStyle.inputField)
+                        style { width(80.px); margin(0.px) }
+                        onInput { event ->
+                            val value = event.value
+                            selectedStat = Stat.values().find { it.name == value } ?: Stat.STR
+                        }
+                    }) {
+                        Stat.values().forEach { stat ->
+                            Option(stat.name) { Text(stat.label) }
+                        }
+                    }
+
+                    Input(InputType.Number) {
+                        classes(MonsterSheetStyle.inputField)
+                        style { width(60.px); margin(0.px) }
+                        value(bonus)
+                        onInput { event -> bonus = event.value?.toString()?.toIntOrNull() ?: 0 }
+                    }
+
+                    Button(attrs = {
+                        classes(MonsterSheetStyle.dndButton)
+                        onClick {
+                            val sign = if (bonus >= 0) "+" else ""
+                            val newEntry = "${selectedStat.label} $sign$bonus"
+                            val currentList = if (savingThrows.isBlank()) emptyList() else savingThrows.split(",").map { it.trim() }.filter { it.isNotBlank() }
+                            
+                            // Remove existing entry for this stat if exists
+                            val statName = selectedStat.label
+                            val filteredList = currentList.filter { !it.startsWith(statName) }
+                            
+                            val newList = filteredList + newEntry
+                            // Sort by Stat enum order
+                            val sortedList = newList.sortedBy { entry ->
+                                val entryStatName = entry.split(" ").firstOrNull() ?: ""
+                                Stat.values().find { it.label == entryStatName }?.ordinal ?: 999
+                            }
+                            
+                            onValueChange(sortedList.joinToString(", "))
+                        }
+                    }) { Text("Add") }
+                }
+            }
+        }
+    } else {
+        if (savingThrows.isNotBlank()) {
+            PropertyLine("Saving Throws", savingThrows, isEditingEnabled = false) {}
+        }
+    }
+}
+
+@Composable
+fun SkillEditor(
+    skills: String,
+    isEditingEnabled: Boolean,
+    onValueChange: (String) -> Unit
+) {
+    if (isEditingEnabled) {
+        Div({ classes(MonsterSheetStyle.propertyLine) }) {
+            Span({ classes(MonsterSheetStyle.propertyLabel) }) { Text("Skills ") }
+            
+            Div({ style { display(DisplayStyle.Flex); flexDirection(FlexDirection.Column); gap(5.px) } }) {
+                // List of current skills
+                if (skills.isNotBlank()) {
+                    Div({ style { display(DisplayStyle.Flex); flexWrap(FlexWrap.Wrap); gap(5.px) } }) {
+                        skills.split(",").map { it.trim() }.filter { it.isNotBlank() }.forEach { skillStr ->
+                            Div({
+                                style {
+                                    backgroundColor(Color("#eee"))
+                                    padding(2.px, 6.px)
+                                    borderRadius(4.px)
+                                    border(1.px, LineStyle.Solid, Color("#ccc"))
+                                    display(DisplayStyle.Flex)
+                                    alignItems(AlignItems.Center)
+                                    gap(5.px)
+                                    fontSize(12.px)
+                                }
+                            }) {
+                                Text(skillStr)
+                                Span({
+                                    style { 
+                                        cursor("pointer")
+                                        color(Color("#58180d"))
+                                        fontWeight("bold")
+                                        marginLeft(2.px)
+                                    }
+                                    onClick {
+                                        val currentList = skills.split(",").map { it.trim() }.filter { it.isNotBlank() }
+                                        val newList = currentList.filter { it != skillStr }
+                                        onValueChange(newList.joinToString(", "))
+                                    }
+                                    title("Remove skill")
+                                }) { Text("×") }
+                            }
+                        }
+                    }
+                }
+
+                // Add new skill controls
+                var selectedSkill by remember { mutableStateOf(Skill.Acrobatics) }
+                var bonus by remember { mutableStateOf(0) }
+
+                Div({ style { display(DisplayStyle.Flex); gap(5.px); alignItems(AlignItems.Center) } }) {
+                    Select({
+                        classes(MonsterSheetStyle.inputField)
+                        style { width(150.px); margin(0.px) }
+                        onInput { event ->
+                            val value = event.value
+                            selectedSkill = Skill.values().find { it.name == value } ?: Skill.Acrobatics
+                        }
+                    }) {
+                        Skill.values().forEach { skill ->
+                            Option(skill.name) { Text(skill.label) }
+                        }
+                    }
+
+                    Input(InputType.Number) {
+                        classes(MonsterSheetStyle.inputField)
+                        style { width(60.px); margin(0.px) }
+                        value(bonus)
+                        onInput { event -> bonus = event.value?.toString()?.toIntOrNull() ?: 0 }
+                    }
+
+                    Button(attrs = {
+                        classes(MonsterSheetStyle.dndButton)
+                        onClick {
+                            val sign = if (bonus >= 0) "+" else ""
+                            val newEntry = "${selectedSkill.label} $sign$bonus"
+                            val currentList = if (skills.isBlank()) emptyList() else skills.split(",").map { it.trim() }.filter { it.isNotBlank() }
+                            
+                            // Remove existing entry for this skill if exists to avoid duplicates/conflicts
+                            val skillName = selectedSkill.label
+                            val filteredList = currentList.filter { !it.startsWith(skillName) }
+                            
+                            val newList = filteredList + newEntry
+                            val sortedList = newList.sorted()
+                            
+                            onValueChange(sortedList.joinToString(", "))
+                        }
+                    }) { Text("Add") }
+                }
+            }
+        }
+    } else {
+        if (skills.isNotBlank()) {
+            PropertyLine("Skills", skills, isEditingEnabled = false) {}
         }
     }
 }

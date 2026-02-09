@@ -1,5 +1,6 @@
 package com.deeperdungeons
 
+import androidx.compose.runtime.*
 import org.jetbrains.compose.web.css.Style
 import org.jetbrains.compose.web.renderComposable
 import kotlinx.browser.window
@@ -12,14 +13,31 @@ fun main() {
     renderComposable(rootElementId = "root") {
         Style(MonsterSheetStyle)
         
-        // Simple routing based on URL query param
-        val urlParams = URLSearchParams(window.location.search)
-        val monsterId = urlParams.get("id")?.toIntOrNull()
+        var currentMonsterId by remember { mutableStateOf<Int?>(null) }
 
-        if (monsterId != null) {
-            MonsterDetail(monsterId)
+        // Initialize state from URL
+        LaunchedEffect(Unit) {
+            val urlParams = URLSearchParams(window.location.search)
+            currentMonsterId = urlParams.get("id")?.toIntOrNull()
+            
+            // Listen for popstate events (back/forward button)
+            window.addEventListener("popstate", {
+                val params = URLSearchParams(window.location.search)
+                currentMonsterId = params.get("id")?.toIntOrNull()
+            })
+        }
+
+        // Function to handle navigation without full reload
+        fun navigateTo(id: Int?) {
+            currentMonsterId = id
+            val url = if (id != null) "?id=$id" else "/"
+            window.history.pushState(null, "", url)
+        }
+
+        if (currentMonsterId != null) {
+            MonsterDetail(currentMonsterId!!, onBack = { navigateTo(null) })
         } else {
-            MonsterList()
+            MonsterList(onMonsterClick = { navigateTo(it) })
         }
     }
 }

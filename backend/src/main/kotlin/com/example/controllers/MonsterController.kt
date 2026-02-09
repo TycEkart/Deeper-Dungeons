@@ -2,8 +2,7 @@ package com.example.controllers
 
 import com.example.repositories.MonsterRepository
 import com.example.repositories.toEntity
-import com.example.shared.MonsterDto
-import com.example.shared.TraitDto
+import com.example.shared.*
 import io.github.oshai.kotlinlogging.KotlinLogging
 import org.springframework.http.HttpStatus
 import org.springframework.http.MediaType
@@ -97,16 +96,18 @@ class MonsterController(
     private fun createInitialMonster(): MonsterDto {
         return MonsterDto(
             name = "Young Green Dragon",
-            meta = "Large dragon, lawful evil",
-            armorClass = "18 (natural armor)",
+            size = MonsterSize.Large,
+            type = MonsterType.Dragon,
+            alignment = Alignment.LawfulEvil,
+            armorClass = ArmorClassDto(18, "natural armor"),
             hitPoints = "136 (16d10 + 48)",
             speed = "40 ft., fly 80 ft., swim 40 ft.",
-            str = "19 (+4)",
-            dex = "12 (+1)",
-            con = "17 (+3)",
-            int = "16 (+3)",
-            wis = "13 (+1)",
-            cha = "15 (+2)",
+            str = StatDto(19, 4),
+            dex = StatDto(12, 1),
+            con = StatDto(17, 3),
+            int = StatDto(16, 3),
+            wis = StatDto(13, 1),
+            cha = StatDto(15, 2),
             savingThrows = "Dex +4, Con +6, Wis +4, Cha +5",
             skills = "Deception +5, Perception +7, Stealth +4",
             senses = "blindsight 30 ft., darkvision 120 ft., passive Perception 17",
