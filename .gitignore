@@ -3,6 +3,11 @@
 build/
 !gradle/wrapper/gradle-wrapper.jar
 
+# Ignore build folders in submodules
+backend/build/
+frontend/build/
+shared/build/
+
 # Kotlin
 .kotlin
 kotlin-js-store/
