@@ -1,4 +1,4 @@
-package api
+package com.deeperdungeons.api
 
 import com.example.shared.MonsterDto
 import io.ktor.client.*

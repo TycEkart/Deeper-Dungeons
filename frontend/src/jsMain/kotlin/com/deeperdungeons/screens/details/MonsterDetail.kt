@@ -1,12 +1,12 @@
-package screens.details
+package com.deeperdungeons.screens.details
 
 import androidx.compose.runtime.*
 import com.example.shared.MonsterDto
-import api.fetchMonster
 import kotlinx.coroutines.launch
 import org.jetbrains.compose.web.css.*
 import org.jetbrains.compose.web.dom.*
-import api.saveMonster
+import com.deeperdungeons.api.fetchMonster
+import com.deeperdungeons.api.saveMonster
 
 @Composable
 fun MonsterDetail(id: Int) {

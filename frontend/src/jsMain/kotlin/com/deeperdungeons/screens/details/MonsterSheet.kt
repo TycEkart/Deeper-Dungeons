@@ -1,16 +1,8 @@
-package screens.details
+package com.deeperdungeons.screens.details
 
-import components.AbilityScore
-import components.AddButton
-import components.EditableText
-import components.PropertyLine
-import components.StatBox
-import components.TaperedRule
-import components.TraitBlock
 import androidx.compose.runtime.*
 import com.example.shared.MonsterDto
 import com.example.shared.TraitDto
-import components.html2canvas
 import kotlinx.coroutines.launch
 import org.jetbrains.compose.web.attributes.InputType
 import org.jetbrains.compose.web.attributes.accept
@@ -28,8 +20,16 @@ import org.w3c.dom.HTMLElement
 import org.w3c.dom.HTMLInputElement
 import org.w3c.dom.url.URL
 import org.w3c.files.File
-import styles.MonsterSheetStyle
-import api.uploadMonsterImage
+import com.deeperdungeons.styles.MonsterSheetStyle
+import com.deeperdungeons.api.uploadMonsterImage
+import com.deeperdungeons.components.AbilityScore
+import com.deeperdungeons.components.AddButton
+import com.deeperdungeons.components.EditableText
+import com.deeperdungeons.components.PropertyLine
+import com.deeperdungeons.components.StatBox
+import com.deeperdungeons.components.TaperedRule
+import com.deeperdungeons.components.TraitBlock
+import com.deeperdungeons.components.html2canvas
 
 @Composable
 fun MonsterSheet(initialMonster: MonsterDto, onSave: (MonsterDto) -> Unit) {
@@ -459,7 +459,9 @@ fun MonsterSheet(initialMonster: MonsterDto, onSave: (MonsterDto) -> Unit) {
                     }
                 }
                 if (monster.skills?.isNotBlank() == true || isEditingEnabled) {
-                    PropertyLine("Skills", monster.skills ?: "", isEditingEnabled) { monster = monster.copy(skills = it) }
+                    PropertyLine("Skills", monster.skills ?: "", isEditingEnabled) {
+                        monster = monster.copy(skills = it)
+                    }
                 }
                 if (monster.senses.isNotBlank() || isEditingEnabled) {
                     PropertyLine("Senses", monster.senses, isEditingEnabled) { monster = monster.copy(senses = it) }

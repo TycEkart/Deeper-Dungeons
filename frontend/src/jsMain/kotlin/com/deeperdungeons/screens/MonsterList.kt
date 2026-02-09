@@ -1,14 +1,14 @@
-package screens
+package com.deeperdungeons.screens
 
 import androidx.compose.runtime.*
 import com.example.shared.MonsterDto
-import api.fetchAllMonsters
 import kotlinx.coroutines.launch
 import org.jetbrains.compose.web.css.*
 import org.jetbrains.compose.web.dom.*
 import kotlinx.browser.window
-import api.saveMonster
-import styles.MonsterSheetStyle
+import com.deeperdungeons.api.fetchAllMonsters
+import com.deeperdungeons.api.saveMonster
+import com.deeperdungeons.styles.MonsterSheetStyle
 
 @Composable
 fun MonsterList() {

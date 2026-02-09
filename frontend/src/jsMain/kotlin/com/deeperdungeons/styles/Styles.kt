@@ -1,4 +1,4 @@
-package styles
+package com.deeperdungeons.styles
 
 import org.jetbrains.compose.web.css.*
 
@@ -81,7 +81,7 @@ object MonsterSheetStyle : StyleSheet() {
         display(DisplayStyle.Flex)
         flexDirection(FlexDirection.Column)
         alignItems(AlignItems.Center)
-        width(50.px)
+        width(120.px) // Increased width significantly to accommodate input fields
     }
     
     val abilityScoreLabel by style {

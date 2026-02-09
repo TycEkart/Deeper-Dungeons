@@ -1,10 +1,10 @@
-package components
+package com.deeperdungeons.components
 
 import androidx.compose.runtime.*
 import org.jetbrains.compose.web.attributes.InputType
 import org.jetbrains.compose.web.css.*
 import org.jetbrains.compose.web.dom.*
-import styles.MonsterSheetStyle
+import com.deeperdungeons.styles.MonsterSheetStyle
 
 @Composable
 fun EditableText(
