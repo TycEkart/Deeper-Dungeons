@@ -1,8 +1,10 @@
+package components
+
 import androidx.compose.runtime.*
 import org.jetbrains.compose.web.attributes.InputType
-import org.jetbrains.compose.web.attributes.placeholder
 import org.jetbrains.compose.web.css.*
 import org.jetbrains.compose.web.dom.*
+import styles.MonsterSheetStyle
 
 @Composable
 fun EditableText(
@@ -67,7 +69,7 @@ fun EditableText(
 @Composable
 fun StatBox(label: String, value: String, isEditingEnabled: Boolean, onValueChange: (String) -> Unit) {
     Div({ classes(MonsterSheetStyle.propertyLine) }) {
-        B { Text("$label ") }
+        Span({ classes(MonsterSheetStyle.propertyLabel) }) { Text("$label ") }
         EditableText(value, isEditingEnabled = isEditingEnabled, onValueChange = onValueChange) {
             Text(value)
         }
@@ -77,7 +79,7 @@ fun StatBox(label: String, value: String, isEditingEnabled: Boolean, onValueChan
 @Composable
 fun AbilityScore(name: String, value: String, isEditingEnabled: Boolean, onValueChange: (String) -> Unit) {
     Div({ classes(MonsterSheetStyle.abilityScore) }) {
-        Div({ style { fontWeight("bold") } }) { Text(name) }
+        Div({ classes(MonsterSheetStyle.abilityScoreLabel) }) { Text(name) }
         EditableText(value, isEditingEnabled = isEditingEnabled, onValueChange = onValueChange) {
             Div { Text(value) }
         }
@@ -87,7 +89,7 @@ fun AbilityScore(name: String, value: String, isEditingEnabled: Boolean, onValue
 @Composable
 fun PropertyLine(label: String, value: String, isEditingEnabled: Boolean, onValueChange: (String) -> Unit) {
     Div({ classes(MonsterSheetStyle.propertyLine) }) {
-        B { Text("$label ") }
+        Span({ classes(MonsterSheetStyle.propertyLabel) }) { Text("$label ") }
         EditableText(value, isEditingEnabled = isEditingEnabled, onValueChange = onValueChange) {
             Text(value)
         }
@@ -104,7 +106,7 @@ fun TraitBlock(
     onDelete: () -> Unit
 ) {
     Div({ 
-        classes(MonsterSheetStyle.traitBlock) 
+        classes(MonsterSheetStyle.traitBlock)
         style { position(Position.Relative) }
     }) {
         if (isEditingEnabled) {
@@ -123,12 +125,17 @@ fun TraitBlock(
         }
 
         EditableText(name, isEditingEnabled = isEditingEnabled, onValueChange = onNameChange) {
-            B({ style { fontStyle("italic") } }) { Text("$name. ") }
+            Span({ classes(MonsterSheetStyle.traitName) }) { Text("$name.") }
         }
         EditableText(description, multiline = true, isEditingEnabled = isEditingEnabled, onValueChange = onDescChange) {
             Text(description)
         }
     }
+}
+
+@Composable
+fun TaperedRule() {
+    Hr({ classes(MonsterSheetStyle.taperedRule) })
 }
 
 @Composable

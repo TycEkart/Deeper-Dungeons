@@ -25,6 +25,7 @@ data class MonsterEntity(
     val challenge: String = "",
     val imageUrl: String? = null,
     val imagePosition: String = "top",
+    val imageScale: Float = 1.0f,
     
     @ElementCollection
     val traits: List<TraitEmbeddable> = emptyList(),
@@ -52,6 +53,7 @@ data class MonsterEntity(
         challenge = challenge,
         imageUrl = imageUrl,
         imagePosition = imagePosition,
+        imageScale = imageScale,
         traits = traits.map { it.toDto() },
         actions = actions.map { it.toDto() }
     )
@@ -86,6 +88,7 @@ fun MonsterDto.toEntity() = MonsterEntity(
     challenge = challenge,
     imageUrl = imageUrl,
     imagePosition = imagePosition,
+    imageScale = imageScale,
     traits = traits.map { TraitEmbeddable(it.name, it.description) },
     actions = actions.map { TraitEmbeddable(it.name, it.description) }
 )

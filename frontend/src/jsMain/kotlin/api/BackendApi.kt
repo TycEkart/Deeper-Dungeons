@@ -1,3 +1,5 @@
+package api
+
 import com.example.shared.MonsterDto
 import io.ktor.client.*
 import io.ktor.client.call.*
