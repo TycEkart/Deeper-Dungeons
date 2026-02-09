@@ -16,7 +16,7 @@ import com.deeperdungeons.frontend.styles.MonsterSheetStyle
 import kotlinx.browser.window
 
 @Composable
-fun MonsterList(onMonsterClick: (Int) -> Unit) {
+fun MonsterList(onMonsterClick: (Int) -> Unit, onGenerateClick: () -> Unit) {
     var monsters by remember { mutableStateOf<List<MonsterDto>>(emptyList()) }
     val scope = rememberCoroutineScope()
 
@@ -129,6 +129,19 @@ fun MonsterList(onMonsterClick: (Int) -> Unit) {
                 }
             }) {
                 Text("Create New Monster")
+            }
+
+            Button(attrs = {
+                classes(MonsterSheetStyle.dndButton)
+                style {
+                    marginTop(10.px)
+                    width(100.percent)
+                }
+                onClick {
+                    onGenerateClick()
+                }
+            }) {
+                Text("Generate New Monster")
             }
         }
     }
