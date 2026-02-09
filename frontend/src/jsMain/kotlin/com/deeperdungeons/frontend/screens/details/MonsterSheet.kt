@@ -21,6 +21,7 @@ import org.w3c.dom.url.URL
 import org.w3c.files.File
 import com.deeperdungeons.frontend.styles.MonsterSheetStyle
 import com.deeperdungeons.frontend.api.uploadMonsterImage
+import com.deeperdungeons.frontend.api.getBaseUrl
 import com.deeperdungeons.frontend.components.AbilityScore
 import com.deeperdungeons.frontend.components.AddButton
 import com.deeperdungeons.frontend.components.EditableText
@@ -277,7 +278,7 @@ fun MonsterSheet(initialMonster: MonsterDto, onBack: () -> Unit, onSave: (Monste
                     }
                 }) {
                     if (monster.imageUrl != null) {
-                        Img(src = "http://localhost:8090${monster.imageUrl}", alt = monster.name) {
+                        Img(src = "${getBaseUrl()}${monster.imageUrl}", alt = monster.name) {
                             style {
                                 // Scale the image based on monster.imageScale
                                 width((300 * monster.imageScale).px)

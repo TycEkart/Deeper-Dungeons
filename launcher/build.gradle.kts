@@ -1,0 +1,33 @@
+plugins {
+    id("org.springframework.boot") version "3.2.5"
+    id("io.spring.dependency-management") version "1.1.4"
+    kotlin("jvm") version "2.2.20"
+    kotlin("plugin.spring") version "2.2.20"
+}
+
+group = "org.example"
+version = "1.0-SNAPSHOT"
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    implementation(project(":backend"))
+    implementation("org.springframework.boot:spring-boot-starter-web")
+    implementation("org.jetbrains.kotlin:kotlin-reflect")
+}
+
+val copyFrontend by tasks.registering(Copy::class) {
+    dependsOn(":frontend:jsBrowserDistribution")
+    from(project(":frontend").layout.buildDirectory.dir("dist/js/productionExecutable"))
+    into(layout.buildDirectory.dir("resources/main/static"))
+}
+
+tasks.named("processResources") {
+    dependsOn(copyFrontend)
+}
+
+tasks.bootJar {
+    mainClass.set("com.deeperdungeons.launcher.LauncherKt")
+}

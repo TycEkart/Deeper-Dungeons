@@ -25,11 +25,6 @@ class RestConfigurations {
                     .allowedHeaders("*")
                     .allowCredentials(true)
             }
-
-            override fun addResourceHandlers(registry: ResourceHandlerRegistry) {
-                registry.addResourceHandler("/images/**")
-                    .addResourceLocations("file:data/images/")
-            }
         }
     }
 }

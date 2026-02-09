@@ -12,6 +12,7 @@ import org.jetbrains.compose.web.css.*
 import org.jetbrains.compose.web.dom.*
 import com.deeperdungeons.frontend.api.fetchAllMonsters
 import com.deeperdungeons.frontend.api.saveMonster
+import com.deeperdungeons.frontend.api.getBaseUrl
 import com.deeperdungeons.frontend.styles.MonsterSheetStyle
 import kotlinx.browser.window
 
@@ -44,7 +45,7 @@ fun MonsterList(onMonsterClick: (Int) -> Unit, onGenerateClick: () -> Unit) {
                     }
                 }) {
                     if (monster.imageUrl != null) {
-                        Img(src = "http://localhost:8090${monster.imageUrl}", alt = monster.name) {
+                        Img(src = "${getBaseUrl()}${monster.imageUrl}", alt = monster.name) {
                             style {
                                 width(50.px)
                                 height(50.px)

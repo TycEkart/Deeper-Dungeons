@@ -9,6 +9,7 @@ import io.ktor.client.request.*
 import io.ktor.client.request.forms.*
 import io.ktor.http.*
 import io.ktor.serialization.kotlinx.json.*
+import kotlinx.browser.window
 import kotlinx.serialization.json.Json
 import org.khronos.webgl.ArrayBuffer
 import org.khronos.webgl.Int8Array
@@ -29,16 +30,25 @@ val jsonClient = HttpClient(Js) {
     }
 }
 
+fun getBaseUrl(): String {
+    val origin = window.location.origin
+    return if (origin.contains("localhost:8080")) {
+        "http://localhost:8090"
+    } else {
+        origin
+    }
+}
+
 suspend fun fetchMonster(id: Int): MonsterDto {
-    return jsonClient.get("http://localhost:8090/monsters/$id").body()
+    return jsonClient.get("${getBaseUrl()}/monsters/$id").body()
 }
 
 suspend fun fetchAllMonsters(): List<MonsterDto> {
-    return jsonClient.get("http://localhost:8090/monsters").body()
+    return jsonClient.get("${getBaseUrl()}/monsters").body()
 }
 
 suspend fun saveMonster(monster: MonsterDto): MonsterDto {
-    return jsonClient.put("http://localhost:8090/monsters") {
+    return jsonClient.put("${getBaseUrl()}/monsters") {
         contentType(ContentType.Application.Json)
         setBody(monster)
     }.body()
@@ -50,7 +60,7 @@ suspend fun uploadMonsterImage(id: Int, file: File): MonsterDto {
     val byteArray = Int8Array(arrayBuffer).unsafeCast<ByteArray>()
 
     return jsonClient.submitFormWithBinaryData(
-        url = "http://localhost:8090/monsters/$id/image",
+        url = "${getBaseUrl()}/monsters/$id/image",
         formData = formData {
             append(FormPart("file", byteArray, Headers.build {
                 append(HttpHeaders.ContentDisposition, "filename=\"${file.name}\"")
