@@ -224,7 +224,11 @@ fun MonsterSheet(initialMonster: MonsterDto, onSave: (MonsterDto) -> Unit) {
                     onClick {
                         val element = document.getElementById("monster-sheet-content") as? HTMLElement
                         if (element != null) {
-                            html2canvas(element).then { canvas ->
+                            // Use html2canvas with useCORS: true to allow capturing cross-origin images
+                            val options = js("{}")
+                            options.useCORS = true
+                            options.allowTaint = true
+                            html2canvas(element, options).then { canvas ->
                                 val link = document.createElement("a") as org.w3c.dom.HTMLAnchorElement
                                 link.download = "${monster.name.replace(" ", "_")}.png"
                                 link.href = (canvas as org.w3c.dom.HTMLCanvasElement).toDataURL()
