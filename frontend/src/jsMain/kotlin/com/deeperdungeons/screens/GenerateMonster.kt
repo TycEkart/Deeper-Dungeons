@@ -23,7 +23,7 @@ fun GenerateMonster(onBack: () -> Unit, onCreated: (Int) -> Unit) {
     var challengeRating by remember { mutableStateOf("") }
     var description by remember { mutableStateOf("") }
     val scope = rememberCoroutineScope()
-
+    
     val exampleJson = remember {
         val example = MonsterDto(
             name = "Example Monster",
@@ -53,25 +53,29 @@ fun GenerateMonster(onBack: () -> Unit, onCreated: (Int) -> Unit) {
     }
 
     val prompt = """
-        |Generate a Dungeons & Dragons 5e monster in JSON format.
-        |${if (monsterName.isNotBlank()) "Name: $monsterName" else ""}
-        |${if (challengeRating.isNotBlank()) "Challenge Rating: $challengeRating" else ""}
-        |${if (description.isNotBlank()) "Description/Concept: $description" else ""}
-
-        |Use the following JSON structure as a template. Ensure all fields are present.
-        |For enums (size, type, alignment), use the exact string values shown in the example.
-
-        |Example JSON Structure:
-        |$exampleJson
-
-        |Do not include the 'id' field.
-        |The 'meta' field is computed, so do not include it.
-        |Return ONLY the JSON object, no markdown formatting.
-    """.trimMargin()
+        Generate a Dungeons & Dragons 5e monster in JSON format.
+        ${if (monsterName.isNotBlank()) "Name: $monsterName" else ""}
+        ${if (challengeRating.isNotBlank()) "Challenge Rating: $challengeRating" else ""}
+        ${if (description.isNotBlank()) "Description/Concept: $description" else ""}
+        
+        Use the following JSON structure as a template. Ensure all fields are present.
+        
+        Allowed Enum Values:
+        - Size: ${MonsterSize.values().joinToString(", ") { "\"${it.name}\"" }}
+        - Type: ${MonsterType.values().joinToString(", ") { "\"${it.name}\"" }}
+        - Alignment: ${Alignment.values().joinToString(", ") { "\"${it.name}\"" }}
+        
+        Example JSON Structure:
+        $exampleJson
+        
+        Do not include the 'id' field.
+        The 'meta' field is computed, so do not include it.
+        Return ONLY the JSON object, no markdown formatting.
+    """.trimIndent().split("\n").filter { it.isNotBlank() }.joinToString("\n")
 
     Div({ classes(MonsterSheetStyle.listContainer) }) {
         Div({ classes(MonsterSheetStyle.controlsContainer) }) {
-            Div({
+             Div({ 
                 style { cursor("pointer"); textDecoration("underline") }
                 onClick { onBack() }
             }) {
@@ -134,8 +138,8 @@ fun GenerateMonster(onBack: () -> Unit, onCreated: (Int) -> Unit) {
                         window.alert("Prompt copied to clipboard!")
                     }
                 }) { Text("Copy Prompt") }
-
-                A(href = "https://gemini.google.com/app", attrs = {
+                
+                A(href = "https://gemini.google.com/app", attrs = { 
                     target(ATarget.Blank)
                     classes(MonsterSheetStyle.dndButton)
                     style { textDecoration("none") }
@@ -155,7 +159,7 @@ fun GenerateMonster(onBack: () -> Unit, onCreated: (Int) -> Unit) {
                     onInput { jsonInput = it.value }
                 }
             )
-
+            
             Button(attrs = {
                 classes(MonsterSheetStyle.dndButton)
                 style { marginTop(10.px) }
@@ -171,13 +175,13 @@ fun GenerateMonster(onBack: () -> Unit, onCreated: (Int) -> Unit) {
                             // Clean up potential markdown code blocks if the user pastes them
                             val cleanJson = jsonInput.replace("```json", "").replace("```", "").trim()
                             var monsterDto = json.decodeFromString<MonsterDto>(cleanJson)
-
+                            
                             // Override with mandatory fields
                             monsterDto = monsterDto.copy(
                                 name = monsterName,
                                 challenge = challengeRating
                             )
-
+                            
                             val savedMonster = saveMonster(monsterDto)
                             if (savedMonster.id != null) {
                                 onCreated(savedMonster.id!!)
