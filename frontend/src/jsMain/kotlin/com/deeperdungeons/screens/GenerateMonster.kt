@@ -9,6 +9,7 @@ import kotlinx.coroutines.launch
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import org.jetbrains.compose.web.attributes.ATarget
+import org.jetbrains.compose.web.attributes.InputType
 import org.jetbrains.compose.web.attributes.placeholder
 import org.jetbrains.compose.web.attributes.readOnly
 import org.jetbrains.compose.web.attributes.target
@@ -18,6 +19,8 @@ import org.jetbrains.compose.web.dom.*
 @Composable
 fun GenerateMonster(onBack: () -> Unit, onCreated: (Int) -> Unit) {
     var jsonInput by remember { mutableStateOf("") }
+    var monsterName by remember { mutableStateOf("") }
+    var challengeRating by remember { mutableStateOf("") }
     val scope = rememberCoroutineScope()
     
     val exampleJson = remember {
@@ -50,6 +53,8 @@ fun GenerateMonster(onBack: () -> Unit, onCreated: (Int) -> Unit) {
 
     val prompt = """
         Generate a Dungeons & Dragons 5e monster in JSON format.
+        ${if (monsterName.isNotBlank()) "Name: $monsterName" else ""}
+        ${if (challengeRating.isNotBlank()) "Challenge Rating: $challengeRating" else ""}
         
         Use the following JSON structure as a template. Ensure all fields are present.
         For enums (size, type, alignment), use the exact string values shown in the example.
@@ -62,7 +67,7 @@ fun GenerateMonster(onBack: () -> Unit, onCreated: (Int) -> Unit) {
         Return ONLY the JSON object, no markdown formatting.
     """.trimIndent()
 
-    Div({ classes(MonsterSheetStyle.mainContainer) }) {
+    Div({ classes(MonsterSheetStyle.listContainer) }) {
         Div({ classes(MonsterSheetStyle.controlsContainer) }) {
              Div({ 
                 style { cursor("pointer"); textDecoration("underline") }
@@ -72,10 +77,34 @@ fun GenerateMonster(onBack: () -> Unit, onCreated: (Int) -> Unit) {
             }
         }
 
-        H1 { Text("Generate Monster with AI") }
+        H1({ classes(MonsterSheetStyle.monsterName) }) { Text("Generate Monster with AI") }
 
         Div({ style { marginBottom(20.px) } }) {
-            P { Text("1. Copy this prompt and paste it into Gemini (or another LLM):") }
+            P { Text("1. Enter Mandatory Details:") }
+            Div({ style { display(DisplayStyle.Flex); gap(20.px) } }) {
+                Div({ style { flex(1) } }) {
+                    Label { Text("Name:") }
+                    Input(InputType.Text) {
+                        classes(MonsterSheetStyle.inputField)
+                        value(monsterName)
+                        onInput { monsterName = it.value }
+                        placeholder("Monster Name")
+                    }
+                }
+                Div({ style { flex(1) } }) {
+                    Label { Text("Challenge Rating:") }
+                    Input(InputType.Text) {
+                        classes(MonsterSheetStyle.inputField)
+                        value(challengeRating)
+                        onInput { challengeRating = it.value }
+                        placeholder("e.g. 1/2 (100 XP)")
+                    }
+                }
+            }
+        }
+
+        Div({ style { marginBottom(20.px) } }) {
+            P { Text("2. Copy this prompt and paste it into Gemini (or another LLM):") }
             TextArea(
                 value = prompt,
                 attrs = {
@@ -103,7 +132,7 @@ fun GenerateMonster(onBack: () -> Unit, onCreated: (Int) -> Unit) {
         }
 
         Div {
-            P { Text("2. Paste the generated JSON here:") }
+            P { Text("3. Paste the generated JSON here:") }
             TextArea(
                 value = jsonInput,
                 attrs = {
@@ -117,12 +146,24 @@ fun GenerateMonster(onBack: () -> Unit, onCreated: (Int) -> Unit) {
                 classes(MonsterSheetStyle.dndButton)
                 style { marginTop(10.px) }
                 onClick {
+                    if (monsterName.isBlank() || challengeRating.isBlank()) {
+                        window.alert("Name and Challenge Rating are mandatory.")
+                        return@onClick
+                    }
+
                     scope.launch {
                         try {
                             val json = Json { ignoreUnknownKeys = true }
                             // Clean up potential markdown code blocks if the user pastes them
                             val cleanJson = jsonInput.replace("```json", "").replace("```", "").trim()
-                            val monsterDto = json.decodeFromString<MonsterDto>(cleanJson)
+                            var monsterDto = json.decodeFromString<MonsterDto>(cleanJson)
+                            
+                            // Override with mandatory fields
+                            monsterDto = monsterDto.copy(
+                                name = monsterName,
+                                challenge = challengeRating
+                            )
+                            
                             val savedMonster = saveMonster(monsterDto)
                             if (savedMonster.id != null) {
                                 onCreated(savedMonster.id!!)
