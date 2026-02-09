@@ -1,18 +1,18 @@
-package com.deeperdungeons.screens
+package com.deeperdungeons.frontend.screens
 
 import androidx.compose.runtime.*
-import com.example.shared.Alignment
-import com.example.shared.ArmorClassDto
-import com.example.shared.MonsterDto
-import com.example.shared.MonsterSize
-import com.example.shared.MonsterType
-import com.example.shared.StatDto
+import com.deeperdungeons.shared.Alignment
+import com.deeperdungeons.shared.ArmorClassDto
+import com.deeperdungeons.shared.MonsterDto
+import com.deeperdungeons.shared.MonsterSize
+import com.deeperdungeons.shared.MonsterType
+import com.deeperdungeons.shared.StatDto
 import kotlinx.coroutines.launch
 import org.jetbrains.compose.web.css.*
 import org.jetbrains.compose.web.dom.*
-import com.deeperdungeons.api.fetchAllMonsters
-import com.deeperdungeons.api.saveMonster
-import com.deeperdungeons.styles.MonsterSheetStyle
+import com.deeperdungeons.frontend.api.fetchAllMonsters
+import com.deeperdungeons.frontend.api.saveMonster
+import com.deeperdungeons.frontend.styles.MonsterSheetStyle
 import kotlinx.browser.window
 
 @Composable
@@ -83,7 +83,7 @@ fun MonsterList(onMonsterClick: (Int) -> Unit) {
                             }) { Text(monster.name) } 
                         }
                         Span({ style { color(Color.black); fontSize(12.px); fontStyle("italic") } }) {
-                            Text(monster.meta)
+                            Text("${monster.size.label} ${monster.type.label}, ${monster.alignment.label}")
                         }
                     }
                 }

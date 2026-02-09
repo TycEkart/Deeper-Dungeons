@@ -1,8 +1,14 @@
-package com.example.controllers
+package com.deeperdungeons.backend.controllers
 
-import com.example.repositories.MonsterRepository
-import com.example.repositories.toEntity
-import com.example.shared.*
+import com.deeperdungeons.backend.repositories.MonsterRepository
+import com.deeperdungeons.shared.Alignment
+import com.deeperdungeons.shared.ArmorClassDto
+import com.deeperdungeons.shared.MonsterDto
+import com.deeperdungeons.shared.MonsterSize
+import com.deeperdungeons.shared.MonsterType
+import com.deeperdungeons.shared.StatDto
+import com.deeperdungeons.shared.TraitDto
+import com.deeperdungeons.backend.repositories.toEntity
 import io.github.oshai.kotlinlogging.KotlinLogging
 import org.springframework.http.HttpStatus
 import org.springframework.http.MediaType
@@ -36,6 +42,9 @@ class MonsterController(
 
     @GetMapping("/{id}")
     fun getMonsterById(@PathVariable id: Int): MonsterDto {
+        if (id == 0) {
+            return createInitialMonster();
+        }
         log.info { "Getting monster with id: $id" }
         val monster = repository.findById(id).getOrNull()
         return monster?.toDto() ?: throw ResponseStatusException(HttpStatus.NOT_FOUND, "Monster not found")
@@ -95,6 +104,7 @@ class MonsterController(
 
     private fun createInitialMonster(): MonsterDto {
         return MonsterDto(
+            id = 0,
             name = "Young Green Dragon",
             size = MonsterSize.Large,
             type = MonsterType.Dragon,

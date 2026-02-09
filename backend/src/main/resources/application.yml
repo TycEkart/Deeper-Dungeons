@@ -18,6 +18,3 @@ spring:
     multipart:
       max-file-size: 10MB
       max-request-size: 10MB
-
-api:
-  key: 8d87f4fc-851f-4da7-82dd-8aacb68c7b8c

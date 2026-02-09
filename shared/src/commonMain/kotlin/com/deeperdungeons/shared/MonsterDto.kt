@@ -1,4 +1,4 @@
-package com.example.shared
+package com.deeperdungeons.shared
 
 import kotlinx.serialization.Serializable
 
@@ -27,11 +27,10 @@ data class MonsterDto(
     val imagePosition: String = "top", // "top", "right", "bottom", "left"
     val imageScale: Float = 1.0f,
     val traits: List<TraitDto> = emptyList(),
-    val actions: List<TraitDto> = emptyList()
-) {
-    val meta: String
-        get() = "${size.label} ${type.label}, ${alignment.label}"
-}
+    val actions: List<TraitDto> = emptyList(),
+    val reactions: List<TraitDto> = emptyList()
+)
+
 
 @Serializable
 data class ArmorClassDto(

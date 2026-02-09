@@ -1,4 +1,4 @@
-package com.example
+package com.deeperdungeons.backend.configurations
 
 import io.github.oshai.kotlinlogging.KotlinLogging
 import org.springframework.http.HttpStatus

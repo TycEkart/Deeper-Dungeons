@@ -1,4 +1,4 @@
-package com.example.controllers
+package com.deeperdungeons.backend.controllers
 
 import io.github.oshai.kotlinlogging.KotlinLogging
 import org.springframework.web.bind.annotation.GetMapping

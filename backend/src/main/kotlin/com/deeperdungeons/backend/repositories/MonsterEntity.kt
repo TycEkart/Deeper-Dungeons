@@ -1,6 +1,12 @@
-package com.example.repositories
+package com.deeperdungeons.backend.repositories
 
-import com.example.shared.*
+import com.deeperdungeons.shared.Alignment
+import com.deeperdungeons.shared.ArmorClassDto
+import com.deeperdungeons.shared.MonsterDto
+import com.deeperdungeons.shared.MonsterSize
+import com.deeperdungeons.shared.MonsterType
+import com.deeperdungeons.shared.StatDto
+import com.deeperdungeons.shared.TraitDto
 import jakarta.persistence.*
 import kotlin.math.floor
 
@@ -32,12 +38,15 @@ data class MonsterEntity(
     val imageUrl: String? = null,
     val imagePosition: String = "top",
     val imageScale: Float = 1.0f,
-    
+
     @ElementCollection
     val traits: List<TraitEmbeddable> = emptyList(),
-    
+
     @ElementCollection
-    val actions: List<TraitEmbeddable> = emptyList()
+    val actions: List<TraitEmbeddable> = emptyList(),
+
+    @ElementCollection
+    val reactions: List<TraitEmbeddable> = emptyList()
 ) {
     fun toDto(): MonsterDto {
         fun calculateModifier(score: Int): Int {
@@ -68,7 +77,8 @@ data class MonsterEntity(
             imagePosition = imagePosition,
             imageScale = imageScale,
             traits = traits.map { it.toDto() },
-            actions = actions.map { it.toDto() }
+            actions = actions.map { it.toDto() },
+            reactions = reactions.map { it.toDto() }
         )
     }
 }
@@ -107,5 +117,6 @@ fun MonsterDto.toEntity() = MonsterEntity(
     imagePosition = imagePosition,
     imageScale = imageScale,
     traits = traits.map { TraitEmbeddable(it.name, it.description) },
-    actions = actions.map { TraitEmbeddable(it.name, it.description) }
+    actions = actions.map { TraitEmbeddable(it.name, it.description) },
+    reactions = reactions.map { TraitEmbeddable(it.name, it.description) }
 )

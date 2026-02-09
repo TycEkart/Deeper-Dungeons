@@ -1,4 +1,4 @@
-package com.deeperdungeons.components
+package com.deeperdungeons.frontend.components
 
 import org.w3c.dom.Element
 import kotlin.js.Promise

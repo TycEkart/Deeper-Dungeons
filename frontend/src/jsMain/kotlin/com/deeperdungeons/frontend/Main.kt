@@ -1,12 +1,12 @@
-package com.deeperdungeons
+package com.deeperdungeons.frontend
 
 import androidx.compose.runtime.*
 import org.jetbrains.compose.web.css.Style
 import org.jetbrains.compose.web.renderComposable
 import kotlinx.browser.window
-import com.deeperdungeons.screens.details.MonsterDetail
-import com.deeperdungeons.screens.MonsterList
-import com.deeperdungeons.styles.MonsterSheetStyle
+import com.deeperdungeons.frontend.screens.details.MonsterDetail
+import com.deeperdungeons.frontend.screens.MonsterList
+import com.deeperdungeons.frontend.styles.MonsterSheetStyle
 import org.w3c.dom.url.URLSearchParams
 
 fun main() {

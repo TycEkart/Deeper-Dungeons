@@ -1,6 +1,6 @@
-package com.deeperdungeons.api
+package com.deeperdungeons.frontend.api
 
-import com.example.shared.MonsterDto
+import com.deeperdungeons.shared.MonsterDto
 import io.ktor.client.*
 import io.ktor.client.call.*
 import io.ktor.client.engine.js.*
@@ -24,6 +24,7 @@ val jsonClient = HttpClient(Js) {
             ignoreUnknownKeys = true
             prettyPrint = true
             isLenient = true
+            encodeDefaults = true
         })
     }
 }

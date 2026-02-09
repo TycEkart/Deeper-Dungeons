@@ -1,4 +1,4 @@
-package com.deeperdungeons.styles
+package com.deeperdungeons.frontend.styles
 
 import org.jetbrains.compose.web.css.*
 

@@ -1,11 +1,12 @@
-package com.deeperdungeons.components
+package com.deeperdungeons.frontend.components
 
 import androidx.compose.runtime.*
-import com.example.shared.StatDto
 import org.jetbrains.compose.web.attributes.InputType
 import org.jetbrains.compose.web.css.*
 import org.jetbrains.compose.web.dom.*
-import com.deeperdungeons.styles.MonsterSheetStyle
+import com.deeperdungeons.frontend.styles.MonsterSheetStyle
+import com.deeperdungeons.shared.StatDto
+import kotlin.math.floor
 
 @Composable
 fun EditableText(
@@ -94,7 +95,7 @@ fun AbilityScore(name: String, stat: StatDto, isEditingEnabled: Boolean, onValue
                     val newValue = event.value?.toString()?.toIntOrNull() ?: 10
                     // Modifier is calculated on backend, but for immediate UI feedback we can approximate or wait for save
                     // Here we just update the value, the modifier will be updated on save/reload or we can calc locally
-                    val newModifier = kotlin.math.floor((newValue - 10) / 2.0).toInt()
+                    val newModifier = floor((newValue - 10) / 2.0).toInt()
                     onValueChange(StatDto(newValue, newModifier))
                 }
             }

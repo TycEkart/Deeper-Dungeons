@@ -1,7 +1,6 @@
-package com.deeperdungeons.screens.details
+package com.deeperdungeons.frontend.screens.details
 
 import androidx.compose.runtime.*
-import com.example.shared.*
 import kotlinx.coroutines.launch
 import org.jetbrains.compose.web.attributes.InputType
 import org.jetbrains.compose.web.attributes.accept
@@ -20,16 +19,23 @@ import org.w3c.dom.HTMLElement
 import org.w3c.dom.HTMLInputElement
 import org.w3c.dom.url.URL
 import org.w3c.files.File
-import com.deeperdungeons.styles.MonsterSheetStyle
-import com.deeperdungeons.api.uploadMonsterImage
-import com.deeperdungeons.components.AbilityScore
-import com.deeperdungeons.components.AddButton
-import com.deeperdungeons.components.EditableText
-import com.deeperdungeons.components.PropertyLine
-import com.deeperdungeons.components.StatBox
-import com.deeperdungeons.components.TaperedRule
-import com.deeperdungeons.components.TraitBlock
-import com.deeperdungeons.components.html2canvas
+import com.deeperdungeons.frontend.styles.MonsterSheetStyle
+import com.deeperdungeons.frontend.api.uploadMonsterImage
+import com.deeperdungeons.frontend.components.AbilityScore
+import com.deeperdungeons.frontend.components.AddButton
+import com.deeperdungeons.frontend.components.EditableText
+import com.deeperdungeons.frontend.components.PropertyLine
+import com.deeperdungeons.frontend.components.StatBox
+import com.deeperdungeons.frontend.components.TaperedRule
+import com.deeperdungeons.frontend.components.TraitBlock
+import com.deeperdungeons.frontend.components.html2canvas
+import com.deeperdungeons.shared.Alignment
+import com.deeperdungeons.shared.MonsterDto
+import com.deeperdungeons.shared.MonsterSize
+import com.deeperdungeons.shared.MonsterType
+import com.deeperdungeons.shared.Skill
+import com.deeperdungeons.shared.Stat
+import com.deeperdungeons.shared.TraitDto
 import org.jetbrains.compose.web.attributes.placeholder
 
 @Composable
@@ -151,7 +157,7 @@ fun MonsterSheet(initialMonster: MonsterDto, onBack: () -> Unit, onSave: (Monste
                         }
                     },
                     value = """
-                        Generate a fantasy portrait of a D&D monster: ${monster.name} (${monster.meta}).
+                        Generate a fantasy portrait of a D&D monster: ${monster.name} (${monster.size.label} ${monster.type.label}, ${monster.alignment.label}).
                         Do not generate text based on this prompt!
                         Armor Class: ${monster.armorClass}. Hit Points: ${monster.hitPoints}. Speed: ${monster.speed}. 
                         Stats: STR ${monster.str.value}, DEX ${monster.dex.value}, CON ${monster.con.value}, INT ${monster.int.value}, WIS ${monster.wis.value}, CHA ${monster.cha.value}. 
@@ -472,7 +478,7 @@ fun MonsterSheet(initialMonster: MonsterDto, onBack: () -> Unit, onSave: (Monste
                             }
                         }
                     } else {
-                        Text(monster.meta)
+                        Text("${monster.size.label} ${monster.type.label}, ${monster.alignment.label}")
                     }
                 }
             }
@@ -498,7 +504,7 @@ fun MonsterSheet(initialMonster: MonsterDto, onBack: () -> Unit, onSave: (Monste
                             Input(InputType.Text) {
                                 classes(MonsterSheetStyle.inputField)
                                 style { width(150.px); margin(0.px) }
-                                placeholder("(description)") //todo ? check thijs
+                                placeholder("(description)")
                                 value(monster.armorClass.description ?: "")
                                 onInput { event ->
                                     val newDesc = event.value
@@ -630,6 +636,42 @@ fun MonsterSheet(initialMonster: MonsterDto, onBack: () -> Unit, onSave: (Monste
                     }
                 }
             }
+
+            // Reactions
+            if (monster.reactions.isNotEmpty() || isEditingEnabled) {
+                H3({ classes(MonsterSheetStyle.sectionHeader) }) { Text("Reactions") }
+                Div({ classes(MonsterSheetStyle.section) }) {
+                    monster.reactions.forEachIndexed { index, reaction ->
+                        TraitBlock(
+                            reaction.name,
+                            reaction.description,
+                            isEditingEnabled,
+                            onNameChange = { newName ->
+                                val newReactions = monster.reactions.toMutableList()
+                                newReactions[index] = reaction.copy(name = newName)
+                                monster = monster.copy(reactions = newReactions)
+                            },
+                            onDescChange = { newDesc ->
+                                val newReactions = monster.reactions.toMutableList()
+                                newReactions[index] = reaction.copy(description = newDesc)
+                                monster = monster.copy(reactions = newReactions)
+                            },
+                            onDelete = {
+                                val newReactions = monster.reactions.toMutableList()
+                                newReactions.removeAt(index)
+                                monster = monster.copy(reactions = newReactions)
+                            }
+                        )
+                    }
+                    if (isEditingEnabled) {
+                        AddButton("Add Reaction") {
+                            val newReactions = monster.reactions.toMutableList()
+                            newReactions.add(TraitDto("New Reaction", "Description"))
+                            monster = monster.copy(reactions = newReactions)
+                        }
+                    }
+                }
+            }
         }
     }
 }
@@ -695,7 +737,11 @@ fun SavingThrowEditor(
                         }
                     }) {
                         Stat.values().forEach { stat ->
-                            Option(stat.name) { Text(stat.label) }
+                            Option(stat.name, attrs = {
+                                if (stat == selectedStat) selected()
+                            }) {
+                                Text(stat.label)
+                            }
                         }
                     }
 
@@ -798,7 +844,11 @@ fun SkillEditor(
                         }
                     }) {
                         Skill.values().forEach { skill ->
-                            Option(skill.name) { Text(skill.label) }
+                            Option(skill.name, attrs = {
+                                if (skill == selectedSkill) selected()
+                            }) {
+                                Text(skill.label)
+                            }
                         }
                     }
 
