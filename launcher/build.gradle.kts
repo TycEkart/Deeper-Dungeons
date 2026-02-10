@@ -39,7 +39,8 @@ launch4j {
     outfile = "Deeper Dungeons.exe"
     icon = "${project.projectDir}/src/main/resources/logo.ico"
     headerType = "gui"
-
+    jreMinVersion = "21"
+    downloadUrl = "https://adoptium.net/temurin/releases/?version=21"
     copyConfigurable = listOf(tasks.bootJar)
     setJarFiles(project.files(tasks.bootJar))
 }
