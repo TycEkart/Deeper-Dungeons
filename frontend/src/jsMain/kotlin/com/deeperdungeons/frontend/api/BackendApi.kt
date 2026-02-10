@@ -54,6 +54,10 @@ suspend fun saveMonster(monster: MonsterDto): MonsterDto {
     }.body()
 }
 
+suspend fun deleteMonster(id: Int) {
+    jsonClient.delete("${getBaseUrl()}/monsters/$id")
+}
+
 suspend fun importMonster(monster: MonsterDto): MonsterDto {
     return jsonClient.post("${getBaseUrl()}/monsters/import") {
         contentType(ContentType.Application.Json)

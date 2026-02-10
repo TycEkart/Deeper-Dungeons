@@ -12,6 +12,7 @@ import org.jetbrains.compose.web.css.*
 import org.jetbrains.compose.web.dom.*
 import com.deeperdungeons.frontend.api.fetchAllMonsters
 import com.deeperdungeons.frontend.api.saveMonster
+import com.deeperdungeons.frontend.api.deleteMonster
 import com.deeperdungeons.frontend.api.importMonster
 import com.deeperdungeons.frontend.api.shutdownBackend
 import com.deeperdungeons.frontend.api.getBaseUrl
@@ -46,54 +47,101 @@ fun MonsterList(onMonsterClick: (Int) -> Unit, onGenerateClick: () -> Unit) {
             monsters.forEach { monster ->
                 Div({
                     classes(MonsterSheetStyle.listItem)
-                    onClick {
-                        if (monster.id != null) {
-                            onMonsterClick(monster.id!!)
-                        }
+                    style {
+                        display(DisplayStyle.Flex)
+                        alignItems(AlignItems.Center)
+                        justifyContent(JustifyContent.SpaceBetween)
                     }
                 }) {
-                    if (monster.imageUrl != null) {
-                        Img(src = "${getBaseUrl()}${monster.imageUrl}", alt = monster.name) {
-                            style {
-                                width(50.px)
-                                height(50.px)
-                                property("object-fit", "cover")
-                                borderRadius(50.percent)
-                                border(1.px, LineStyle.Solid, Color("#58180d"))
+                    // Clickable area for opening the monster details
+                    Div({
+                        style {
+                            display(DisplayStyle.Flex)
+                            alignItems(AlignItems.Center)
+                            gap(10.px)
+                            flex(1) // Take up remaining space
+                            cursor("pointer")
+                        }
+                        onClick {
+                            if (monster.id != null) {
+                                onMonsterClick(monster.id!!)
                             }
                         }
-                    } else {
-                        Div({
-                            style {
-                                width(50.px)
-                                height(50.px)
-                                backgroundColor(Color("#fdf1dc"))
-                                borderRadius(50.percent)
-                                border(1.px, LineStyle.Solid, Color("#58180d"))
-                                display(DisplayStyle.Flex)
-                                justifyContent(JustifyContent.Center)
-                                alignItems(AlignItems.Center)
-                                fontSize(20.px)
-                                color(Color("#58180d"))
+                    }) {
+                        if (monster.imageUrl != null) {
+                            Img(src = "${getBaseUrl()}${monster.imageUrl}", alt = monster.name) {
+                                style {
+                                    width(50.px)
+                                    height(50.px)
+                                    property("object-fit", "cover")
+                                    borderRadius(50.percent)
+                                    border(1.px, LineStyle.Solid, Color("#58180d"))
+                                }
                             }
-                        }) { Text("?") }
-                    }
-                    
-                    Div {
-                        Div { 
-                            Span({ 
-                                style { 
-                                    fontWeight("bold")
+                        } else {
+                            Div({
+                                style {
+                                    width(50.px)
+                                    height(50.px)
+                                    backgroundColor(Color("#fdf1dc"))
+                                    borderRadius(50.percent)
+                                    border(1.px, LineStyle.Solid, Color("#58180d"))
+                                    display(DisplayStyle.Flex)
+                                    justifyContent(JustifyContent.Center)
+                                    alignItems(AlignItems.Center)
+                                    fontSize(20.px)
                                     color(Color("#58180d"))
-                                    fontSize(18.px)
-                                    fontFamily("Book Antiqua", "Palatino Linotype", "Palatino", "serif")
-                                    property("font-variant", "small-caps")
-                                } 
-                            }) { Text(monster.name) } 
+                                }
+                            }) { Text("?") }
                         }
-                        Span({ style { color(Color.black); fontSize(12.px); fontStyle("italic") } }) {
-                            Text("${monster.size.label} ${monster.type.label}, ${monster.alignment.label}")
+                        
+                        Div {
+                            Div { 
+                                Span({ 
+                                    style { 
+                                        fontWeight("bold")
+                                        color(Color("#58180d"))
+                                        fontSize(18.px)
+                                        fontFamily("Book Antiqua", "Palatino Linotype", "Palatino", "serif")
+                                        property("font-variant", "small-caps")
+                                    } 
+                                }) { Text(monster.name) } 
+                            }
+                            Span({ style { color(Color.black); fontSize(12.px); fontStyle("italic") } }) {
+                                Text("${monster.size.label} ${monster.type.label}, ${monster.alignment.label}")
+                            }
                         }
+                    }
+
+                    // Delete Button
+                    Button(attrs = {
+                        style {
+                            backgroundColor(Color.transparent)
+                            border(0.px)
+                            color(Color("#58180d"))
+                            fontSize(18.px)
+                            cursor("pointer")
+                            padding(5.px)
+                            marginLeft(10.px)
+                        }
+                        onClick {
+                            if (window.confirm("Are you sure you want to delete '${monster.name}'?")) {
+                                scope.launch {
+                                    try {
+                                        if (monster.id != null) {
+                                            deleteMonster(monster.id!!)
+                                            monsters = fetchAllMonsters() // Refresh list
+                                        }
+                                    } catch (e: Exception) {
+                                        console.error("Failed to delete monster", e)
+                                        window.alert("Failed to delete monster")
+                                    }
+                                }
+                            }
+                        }
+                        title("Delete Monster")
+                    }) {
+                        Text("✕")
                     }
                 }
             }

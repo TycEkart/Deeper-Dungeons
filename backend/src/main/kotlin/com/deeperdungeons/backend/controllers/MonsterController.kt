@@ -52,6 +52,16 @@ class MonsterController(
         return savedEntity.toDto()
     }
 
+    @DeleteMapping("/{id}")
+    fun deleteMonster(@PathVariable id: Int) {
+        log.info { "Deleting monster with id: $id" }
+        if (repository.existsById(id)) {
+            repository.deleteById(id)
+        } else {
+            throw ResponseStatusException(HttpStatus.NOT_FOUND, "Monster not found")
+        }
+    }
+
     @PostMapping(value = ["/{id}/image"], consumes = [MediaType.MULTIPART_FORM_DATA_VALUE])
     fun uploadImage(@PathVariable id: Int, @RequestParam("file") file: MultipartFile): MonsterDto {
         log.info { "Uploading image for monster id: $id" }
