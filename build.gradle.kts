@@ -11,7 +11,7 @@ plugins {
 val projectVersion: String by project
 
 allprojects {
-    group = "org.example"
+    group = "com.deeperdungeons"
     version = projectVersion
 
     repositories {

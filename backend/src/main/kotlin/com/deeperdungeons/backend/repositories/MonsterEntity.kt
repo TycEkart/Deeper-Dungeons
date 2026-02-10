@@ -40,6 +40,7 @@ data class MonsterEntity(
     val imagePrompt: String? = null,
     val imagePosition: String = "right",
     val imageScale: Float = 1.0f,
+    val deeperDungeonsVersion: String? = null,
 
     @ElementCollection
     val traits: List<TraitEmbeddable> = emptyList(),
@@ -81,7 +82,8 @@ data class MonsterEntity(
             imageScale = imageScale,
             traits = traits.map { it.toDto() },
             actions = actions.map { it.toDto() },
-            reactions = reactions.map { it.toDto() }
+            reactions = reactions.map { it.toDto() },
+            deeperDungeonsVersion = deeperDungeonsVersion
         )
     }
 }
@@ -122,5 +124,6 @@ fun MonsterDto.toEntity() = MonsterEntity(
     imageScale = imageScale,
     traits = traits.map { TraitEmbeddable(it.name, it.description) },
     actions = actions.map { TraitEmbeddable(it.name, it.description) },
-    reactions = reactions.map { TraitEmbeddable(it.name, it.description) }
+    reactions = reactions.map { TraitEmbeddable(it.name, it.description) },
+    deeperDungeonsVersion = deeperDungeonsVersion
 )

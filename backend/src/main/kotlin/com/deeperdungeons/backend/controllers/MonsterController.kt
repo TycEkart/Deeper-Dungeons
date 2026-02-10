@@ -10,6 +10,7 @@ import com.deeperdungeons.shared.StatDto
 import com.deeperdungeons.shared.TraitDto
 import com.deeperdungeons.backend.repositories.toEntity
 import io.github.oshai.kotlinlogging.KotlinLogging
+import org.springframework.boot.info.BuildProperties
 import org.springframework.http.HttpStatus
 import org.springframework.http.MediaType
 import org.springframework.web.bind.annotation.*
@@ -27,7 +28,8 @@ private val log = KotlinLogging.logger {}
 @RequestMapping("/monsters")
 class MonsterController(
     val repository: MonsterRepository,
-    val restClient: RestClient
+    val restClient: RestClient,
+    val buildProperties: BuildProperties?
 ) {
 
     @GetMapping
@@ -47,7 +49,14 @@ class MonsterController(
     @PutMapping
     fun saveMonster(@RequestBody monsterDto: MonsterDto): MonsterDto {
         log.info { "Saving monster: $monsterDto" }
-        val entity = monsterDto.toEntity()
+        
+        // If creating a new monster or updating, ensure version is set to current app version
+        // Note: If you want to preserve the original version on update, you might need logic here.
+        // But typically, saving implies modifying with the current version of the tool.
+        val currentVersion = buildProperties?.version ?: "Unknown"
+        val monsterToSave = monsterDto.copy(deeperDungeonsVersion = currentVersion)
+        
+        val entity = monsterToSave.toEntity()
         val savedEntity = repository.save(entity)
         return savedEntity.toDto()
     }

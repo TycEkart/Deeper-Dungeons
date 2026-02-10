@@ -29,7 +29,8 @@ data class MonsterDto(
     val imageScale: Float = 1.0f,
     val traits: List<TraitDto> = emptyList(),
     val actions: List<TraitDto> = emptyList(),
-    val reactions: List<TraitDto> = emptyList()
+    val reactions: List<TraitDto> = emptyList(),
+    val deeperDungeonsVersion: String? = null
 )
 
 
