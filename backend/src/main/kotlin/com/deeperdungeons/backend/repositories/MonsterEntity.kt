@@ -38,7 +38,7 @@ data class MonsterEntity(
     val imageUrl: String? = null,
     @Column(length = 2000)
     val imagePrompt: String? = null,
-    val imagePosition: String = "top",
+    val imagePosition: String = "right",
     val imageScale: Float = 1.0f,
 
     @ElementCollection
