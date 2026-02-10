@@ -12,12 +12,17 @@ import org.jetbrains.compose.web.css.*
 import org.jetbrains.compose.web.dom.*
 import com.deeperdungeons.frontend.api.fetchAllMonsters
 import com.deeperdungeons.frontend.api.saveMonster
+import com.deeperdungeons.frontend.api.importMonster
 import com.deeperdungeons.frontend.api.shutdownBackend
 import com.deeperdungeons.frontend.api.getBaseUrl
 import com.deeperdungeons.frontend.styles.MonsterSheetStyle
 import kotlinx.browser.window
+import kotlinx.serialization.json.Json
 import org.jetbrains.compose.web.attributes.ATarget
+import org.jetbrains.compose.web.attributes.InputType
 import org.jetbrains.compose.web.attributes.target
+import org.w3c.dom.HTMLInputElement
+import org.w3c.files.FileReader
 
 @Composable
 fun MonsterList(onMonsterClick: (Int) -> Unit, onGenerateClick: () -> Unit) {
@@ -146,6 +151,59 @@ fun MonsterList(onMonsterClick: (Int) -> Unit, onGenerateClick: () -> Unit) {
                 }
             }) {
                 Text("Generate New Monster")
+            }
+
+            // Import Monster Button
+            Div {
+                val inputId = "import-monster-input"
+                Input(InputType.File) {
+                    id(inputId)
+                    style { display(DisplayStyle.None) }
+                    attr("accept", ".json")
+                    onChange { event ->
+                        val file = (event.target as HTMLInputElement).files?.item(0)
+                        if (file != null) {
+                            val reader = FileReader()
+                            reader.onload = { e ->
+                                val content = e.target.asDynamic().result as String
+                                try {
+                                    val importedMonster = Json.decodeFromString<MonsterDto>(content)
+                                    scope.launch {
+                                        try {
+                                            val savedMonster = importMonster(importedMonster)
+                                            monsters = fetchAllMonsters() // Refresh list
+                                            if (savedMonster.id != null) {
+                                                onMonsterClick(savedMonster.id!!)
+                                            }
+                                        } catch (e: Exception) {
+                                            console.error("Failed to import monster", e)
+                                            window.alert("Failed to import monster: ${e.message}")
+                                        }
+                                    }
+                                } catch (e: Exception) {
+                                    console.error("Invalid JSON file", e)
+                                    window.alert("Invalid JSON file")
+                                }
+                            }
+                            reader.readAsText(file)
+                        }
+                        // Reset input value so the same file can be selected again
+                        (event.target as HTMLInputElement).value = ""
+                    }
+                }
+
+                Button(attrs = {
+                    classes(MonsterSheetStyle.dndButton)
+                    style {
+                        marginTop(10.px)
+                        width(100.percent)
+                    }
+                    onClick {
+                        window.document.getElementById(inputId)?.unsafeCast<HTMLInputElement>()?.click()
+                    }
+                }) {
+                    Text("Import Monster")
+                }
             }
 
             // Developer Tools Section

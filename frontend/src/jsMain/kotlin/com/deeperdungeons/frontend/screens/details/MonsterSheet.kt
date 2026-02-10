@@ -107,6 +107,17 @@ fun MonsterSheet(initialMonster: MonsterDto, onBack: () -> Unit, onSave: (Monste
                     Text("Print PNG")
                 }
 
+                // Export Button
+                if (monster.id != null) {
+                    A(href = "${getBaseUrl()}/monsters/${monster.id}/export", attrs = {
+                        target(ATarget.Blank)
+                        classes(MonsterSheetStyle.dndButton)
+                        style { textDecoration("none") }
+                    }) {
+                        Text("Export JSON")
+                    }
+                }
+
                 Button(attrs = {
                     classes(MonsterSheetStyle.dndButton)
                     onClick {

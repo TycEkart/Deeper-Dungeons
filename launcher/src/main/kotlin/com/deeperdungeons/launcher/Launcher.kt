@@ -3,10 +3,7 @@ package com.deeperdungeons.launcher
 import com.deeperdungeons.backend.Application
 import org.springframework.boot.runApplication
 import java.awt.BorderLayout
-import java.awt.Desktop
-import java.io.OutputStream
 import java.io.PrintStream
-import java.net.URI
 import javax.swing.*
 import kotlin.concurrent.thread
 
@@ -54,9 +51,13 @@ fun createAndShowGUI(args: Array<String>) {
     // Run Spring Boot in a separate thread to avoid freezing the GUI
     thread(isDaemon = false) {
         try {
-            val context = runApplication<Application>(*args)
+            val port = findAvailablePort(8090)
+            println("Found available port: $port")
+
+            // Pass the port to Spring Boot
+            val newArgs = args + arrayOf("--server.port=$port")
+            val context = runApplication<Application>(*newArgs)
             
-            val port = context.environment.getProperty("server.port", "8090")
             val url = "http://localhost:$port"
             
             println("Server started on port $port")
@@ -67,43 +68,5 @@ fun createAndShowGUI(args: Array<String>) {
             e.printStackTrace()
             JOptionPane.showMessageDialog(frame, "Error starting server: ${e.message}", "Error", JOptionPane.ERROR_MESSAGE)
         }
-    }
-}
-
-class TextAreaOutputStream(private val textArea: JTextArea) : OutputStream() {
-    override fun write(b: Int) {
-        updateText(b.toChar().toString())
-    }
-
-    override fun write(b: ByteArray, off: Int, len: Int) {
-        updateText(String(b, off, len))
-    }
-
-    private fun updateText(text: String) {
-        SwingUtilities.invokeLater {
-            textArea.append(text)
-        }
-    }
-}
-
-fun openBrowser(url: String) {
-    val os = System.getProperty("os.name").lowercase()
-    try {
-        if (Desktop.isDesktopSupported() && Desktop.getDesktop().isSupported(Desktop.Action.BROWSE)) {
-            Desktop.getDesktop().browse(URI(url))
-        } else {
-            val runtime = Runtime.getRuntime()
-            if (os.contains("win")) {
-                runtime.exec(arrayOf("rundll32", "url.dll,FileProtocolHandler", url))
-            } else if (os.contains("mac")) {
-                runtime.exec(arrayOf("open", url))
-            } else if (os.contains("nix") || os.contains("nux")) {
-                runtime.exec(arrayOf("xdg-open", url))
-            } else {
-                println("Cannot open browser automatically on this platform.")
-            }
-        }
-    } catch (e: Exception) {
-        println("Failed to open browser: ${e.message}")
     }
 }

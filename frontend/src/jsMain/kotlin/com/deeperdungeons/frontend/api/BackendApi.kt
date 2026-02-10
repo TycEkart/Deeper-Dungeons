@@ -54,6 +54,13 @@ suspend fun saveMonster(monster: MonsterDto): MonsterDto {
     }.body()
 }
 
+suspend fun importMonster(monster: MonsterDto): MonsterDto {
+    return jsonClient.post("${getBaseUrl()}/monsters/import") {
+        contentType(ContentType.Application.Json)
+        setBody(monster)
+    }.body()
+}
+
 suspend fun uploadMonsterImage(id: Int, file: File): MonsterDto {
     // Fallback to FileReader since arrayBuffer() is missing in this stdlib version
     val arrayBuffer = readFileAsArrayBuffer(file)
