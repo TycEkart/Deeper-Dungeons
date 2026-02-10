@@ -36,6 +36,8 @@ data class MonsterEntity(
     val languages: String = "",
     val challenge: String = "",
     val imageUrl: String? = null,
+    @Column(length = 2000)
+    val imagePrompt: String? = null,
     val imagePosition: String = "top",
     val imageScale: Float = 1.0f,
 
@@ -74,6 +76,7 @@ data class MonsterEntity(
             languages = languages,
             challenge = challenge,
             imageUrl = imageUrl,
+            imagePrompt = imagePrompt,
             imagePosition = imagePosition,
             imageScale = imageScale,
             traits = traits.map { it.toDto() },
@@ -114,6 +117,7 @@ fun MonsterDto.toEntity() = MonsterEntity(
     languages = languages,
     challenge = challenge,
     imageUrl = imageUrl,
+    imagePrompt = imagePrompt,
     imagePosition = imagePosition,
     imageScale = imageScale,
     traits = traits.map { TraitEmbeddable(it.name, it.description) },

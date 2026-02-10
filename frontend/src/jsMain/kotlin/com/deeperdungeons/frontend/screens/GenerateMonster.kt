@@ -1,4 +1,4 @@
-package com.deeperdungeons.screens
+package com.deeperdungeons.frontend.screens
 
 import androidx.compose.runtime.*
 import com.deeperdungeons.frontend.api.saveMonster
@@ -44,6 +44,7 @@ fun GenerateMonster(onBack: () -> Unit, onCreated: (Int) -> Unit) {
             senses = "passive Perception 10",
             languages = "Common",
             challenge = "1/2 (100 XP)",
+            imagePrompt = "A detailed description of the monster for image generation",
             traits = listOf(TraitDto("Trait Name", "Trait Description")),
             actions = listOf(TraitDto("Action Name", "Action Description")),
             reactions = listOf(TraitDto("Reaction Name", "Reaction Description"))
@@ -70,6 +71,8 @@ fun GenerateMonster(onBack: () -> Unit, onCreated: (Int) -> Unit) {
         
         Do not include the 'id' field.
         The 'meta' field is computed, so do not include it.
+        Also generate a detailed image prompt for the monster in the 'imagePrompt' field, include the size and species.
+        Must have within the imagePrompt: 'Generate a fantasy portrait of a D&D monster, Style: Detailed, oil painting, dark fantasy.'
         Return ONLY the JSON object, no markdown formatting.
     """.trimIndent().split("\n").filter { it.isNotBlank() }.joinToString("\n")
 
@@ -193,6 +196,42 @@ fun GenerateMonster(onBack: () -> Unit, onCreated: (Int) -> Unit) {
                     }
                 }
             }) { Text("Create Monster") }
+        }
+        
+        // Optional Step 4: Display the image prompt if available in the pasted JSON
+        val parsedImagePrompt = try {
+            val json = Json { ignoreUnknownKeys = true }
+            val cleanJson = jsonInput.replace("```json", "").replace("```", "").trim()
+            if (cleanJson.isNotBlank()) {
+                val monsterDto = json.decodeFromString<MonsterDto>(cleanJson)
+                monsterDto.imagePrompt
+            } else {
+                null
+            }
+        } catch (e: Exception) {
+            null
+        }
+
+        if (parsedImagePrompt != null) {
+            Div({ style { marginTop(20.px) } }) {
+                P { Text("4. (Optional) Copy the generated image prompt:") }
+                TextArea(
+                    value = parsedImagePrompt,
+                    attrs = {
+                        style { width(100.percent); height(80.px) }
+                        readOnly()
+                    }
+                )
+                Div({ style { display(DisplayStyle.Flex); gap(10.px); marginTop(10.px) } }) {
+                    Button(attrs = {
+                        classes(MonsterSheetStyle.dndButton)
+                        onClick {
+                            window.navigator.clipboard.writeText(parsedImagePrompt)
+                            window.alert("Image prompt copied to clipboard!")
+                        }
+                    }) { Text("Copy Image Prompt") }
+                }
+            }
         }
     }
 }

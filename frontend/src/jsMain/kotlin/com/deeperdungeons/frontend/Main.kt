@@ -7,7 +7,7 @@ import kotlinx.browser.window
 import com.deeperdungeons.frontend.screens.details.MonsterDetail
 import com.deeperdungeons.frontend.screens.MonsterList
 import com.deeperdungeons.frontend.styles.MonsterSheetStyle
-import com.deeperdungeons.screens.GenerateMonster
+import com.deeperdungeons.frontend.screens.GenerateMonster
 import org.w3c.dom.url.URLSearchParams
 
 fun main() {

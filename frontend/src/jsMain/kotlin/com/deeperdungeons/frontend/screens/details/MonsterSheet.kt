@@ -53,7 +53,7 @@ fun MonsterSheet(initialMonster: MonsterDto, onBack: () -> Unit, onSave: (Monste
         monster = initialMonster
     }
 
-    val portraitPrompt = """
+    val classicPrompt = """
         Generate a fantasy portrait of a D&D monster: ${monster.name} (${monster.size.label} ${monster.type.label}, ${monster.alignment.label}).
         Do not generate text based on this prompt!
         Armor Class: ${monster.armorClass}. Hit Points: ${monster.hitPoints}. Speed: ${monster.speed}. 
@@ -62,6 +62,8 @@ fun MonsterSheet(initialMonster: MonsterDto, onBack: () -> Unit, onSave: (Monste
         Actions: ${monster.actions.joinToString(", ") { "${it.name}: ${it.description}" }}. 
         Style: Detailed, oil painting, dark fantasy.
     """.trimIndent().replace("\n", " ")
+
+    val customPrompt = monster.imagePrompt
 
     Div({ classes(MonsterSheetStyle.mainContainer) }) {
         // Controls (Back, ID & Edit Button) outside the sheet
@@ -144,14 +146,92 @@ fun MonsterSheet(initialMonster: MonsterDto, onBack: () -> Unit, onSave: (Monste
                     fontSize(12.px)
                 }
             }) {
-                P { Text("Copy this prompt and paste it into Gemini or an image generator:") }
+                P { Text("Copy one of these prompts and paste it into Gemini or an image generator:") }
+                
+                // Classic Prompt
+                Div({ style { marginBottom(10.px) } }) {
+                    Label { Text("Classic Prompt (Auto-generated):") }
+                    TextArea(
+                        attrs = {
+                            style {
+                                width(100.percent)
+                                height(60.px)
+                                marginBottom(5.px)
+                            }
+                            readOnly()
+                        },
+                        value = classicPrompt
+                    )
+                    Button(attrs = {
+                        classes(MonsterSheetStyle.dndButton)
+                        onClick {
+                            window.navigator.clipboard.writeText(classicPrompt)
+                            window.alert("Classic prompt copied to clipboard!")
+                        }
+                    }) { Text("Copy Classic Prompt") }
+                }
+
+                // Custom Prompt (if available)
+                if (!customPrompt.isNullOrBlank()) {
+                    Div({ style { marginBottom(10.px) } }) {
+                        Label { Text("Custom Prompt (From AI/Database):") }
+                        TextArea(
+                            attrs = {
+                                style {
+                                    width(100.percent)
+                                    height(60.px)
+                                    marginBottom(5.px)
+                                }
+                                if (!isEditingEnabled) {
+                                    readOnly()
+                                }
+                                onInput { event ->
+                                    if (isEditingEnabled) {
+                                        monster = monster.copy(imagePrompt = event.value)
+                                    }
+                                }
+                            },
+                            value = customPrompt
+                        )
+                        Button(attrs = {
+                            classes(MonsterSheetStyle.dndButton)
+                            onClick {
+                                window.navigator.clipboard.writeText(customPrompt)
+                                window.alert("Custom prompt copied to clipboard!")
+                            }
+                        }) { Text("Copy Custom Prompt") }
+                    }
+                } else if (isEditingEnabled) {
+                     Div({ style { marginBottom(10.px) } }) {
+                        Label { Text("Custom Prompt (Editable):") }
+                        TextArea(
+                            attrs = {
+                                style {
+                                    width(100.percent)
+                                    height(60.px)
+                                    marginBottom(5.px)
+                                }
+                                placeholder("Enter a custom image prompt here...")
+                                onInput { event ->
+                                    monster = monster.copy(imagePrompt = event.value)
+                                }
+                            },
+                            value = ""
+                        )
+                    }
+                }
+
+                Hr()
+                
+                P { Text("Paste generated image here:") }
                 TextArea(
                     attrs = {
                         style {
                             width(100.percent)
-                            height(80.px)
+                            height(40.px)
                             marginBottom(5.px)
                         }
+                        placeholder("Paste image here (Ctrl+V)")
                         readOnly()
                         onPaste { event ->
                             console.log("Paste event triggered")
@@ -177,19 +257,10 @@ fun MonsterSheet(initialMonster: MonsterDto, onBack: () -> Unit, onSave: (Monste
                                 console.log("No clipboard items found")
                             }
                         }
-                    },
-                    value = portraitPrompt
+                    }
                 )
                 
                 Div({ style { display(DisplayStyle.Flex); gap(10.px); marginTop(5.px) } }) {
-                    Button(attrs = {
-                        classes(MonsterSheetStyle.dndButton)
-                        onClick {
-                            window.navigator.clipboard.writeText(portraitPrompt)
-                            window.alert("Prompt copied to clipboard!")
-                        }
-                    }) { Text("Copy Prompt") }
-
                     A(
                         href = "https://gemini.google.com/app",
                         attrs = { 
