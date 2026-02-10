@@ -4,6 +4,7 @@ import com.deeperdungeons.backend.Application
 import org.springframework.boot.runApplication
 import java.awt.BorderLayout
 import java.io.PrintStream
+import java.util.Properties
 import javax.swing.*
 import kotlin.concurrent.thread
 
@@ -17,7 +18,9 @@ fun main(args: Array<String>) {
 }
 
 fun createAndShowGUI(args: Array<String>) {
-    val frame = JFrame("Deeper Dungeons Server")
+    val version = retrieveVersionFromBuildInfo()
+
+    val frame = JFrame("Deeper Dungeons Server v$version")
     frame.defaultCloseOperation = WindowConstants.EXIT_ON_CLOSE
     frame.setSize(800, 600)
     frame.layout = BorderLayout()
@@ -46,7 +49,7 @@ fun createAndShowGUI(args: Array<String>) {
     frame.setLocationRelativeTo(null)
     frame.isVisible = true
 
-    println("Starting Deeper Dungeons Server...")
+    println("Starting Deeper Dungeons Server v$version...")
 
     // Run Spring Boot in a separate thread to avoid freezing the GUI
     thread(isDaemon = false) {
@@ -69,4 +72,21 @@ fun createAndShowGUI(args: Array<String>) {
             JOptionPane.showMessageDialog(frame, "Error starting server: ${e.message}", "Error", JOptionPane.ERROR_MESSAGE)
         }
     }
+}
+
+private fun retrieveVersionFromBuildInfo(): String? {
+    val version = try {
+        val props = Properties()
+        val stream = object {}.javaClass.getResourceAsStream("/META-INF/build-info.properties")
+        if (stream != null) {
+            props.load(stream)
+            props.getProperty("build.version", "Unknown")
+        } else {
+            // Fallback if build-info is not found (e.g. running from IDE without full build)
+            "Dev"
+        }
+    } catch (e: Exception) {
+        "Unknown"
+    }
+    return version
 }

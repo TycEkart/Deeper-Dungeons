@@ -89,6 +89,14 @@ suspend fun shutdownBackend() {
     }
 }
 
+suspend fun getAppVersion(): String {
+    return try {
+        jsonClient.get("${getBaseUrl()}/system/version").body<String>()
+    } catch (e: Exception) {
+        "Unknown"
+    }
+}
+
 suspend fun readFileAsArrayBuffer(file: File): ArrayBuffer = suspendCoroutine { continuation ->
     val reader = FileReader()
     reader.onload = { 

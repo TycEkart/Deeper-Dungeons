@@ -8,9 +8,11 @@ plugins {
     id("org.jetbrains.compose") version "1.6.10" apply false
 }
 
+val projectVersion: String by project
+
 allprojects {
     group = "org.example"
-    version = "1.0-SNAPSHOT"
+    version = projectVersion
 
     repositories {
         mavenCentral()

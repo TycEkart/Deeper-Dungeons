@@ -15,8 +15,10 @@ import com.deeperdungeons.frontend.api.saveMonster
 import com.deeperdungeons.frontend.api.deleteMonster
 import com.deeperdungeons.frontend.api.importMonster
 import com.deeperdungeons.frontend.api.shutdownBackend
+import com.deeperdungeons.frontend.api.getAppVersion
 import com.deeperdungeons.frontend.api.getBaseUrl
 import com.deeperdungeons.frontend.styles.MonsterSheetStyle
+import kotlinx.browser.document
 import kotlinx.browser.window
 import kotlinx.serialization.json.Json
 import org.jetbrains.compose.web.attributes.ATarget
@@ -28,6 +30,7 @@ import org.w3c.files.FileReader
 @Composable
 fun MonsterList(onMonsterClick: (Int) -> Unit, onGenerateClick: () -> Unit) {
     var monsters by remember { mutableStateOf<List<MonsterDto>>(emptyList()) }
+    var appVersion by remember { mutableStateOf("Loading...") }
     val scope = rememberCoroutineScope()
 
     LaunchedEffect(Unit) {
@@ -36,6 +39,15 @@ fun MonsterList(onMonsterClick: (Int) -> Unit, onGenerateClick: () -> Unit) {
                 monsters = fetchAllMonsters()
             } catch (e: Exception) {
                 console.error("Failed to fetch monsters", e)
+            }
+        }
+        scope.launch {
+            try {
+                appVersion = getAppVersion()
+                document.title = "Deeper Dungeons v$appVersion"
+            } catch (e: Exception) {
+                console.error("Failed to fetch version", e)
+                appVersion = "Unknown"
             }
         }
     }
@@ -274,6 +286,11 @@ fun MonsterList(onMonsterClick: (Int) -> Unit, onGenerateClick: () -> Unit) {
                         Text("Swagger UI")
                     }
                 }
+            }
+
+            // Version Info
+            Div({ style { marginTop(10.px); textAlign("center"); fontSize(10.px); color(Color("#999")) } }) {
+                Text("v$appVersion")
             }
 
             Button(attrs = {

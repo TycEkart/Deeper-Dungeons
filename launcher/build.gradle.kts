@@ -6,8 +6,7 @@ plugins {
     id("edu.sc.seis.launch4j") version "4.0.0"
 }
 
-group = "org.example"
-version = "1.0-SNAPSHOT"
+// Version is inherited from root project
 
 repositories {
     mavenCentral()

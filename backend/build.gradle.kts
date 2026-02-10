@@ -8,13 +8,16 @@ plugins {
     kotlin("plugin.spring") version "2.2.20"
 }
 
-group = "org.example"
-version = "1.0-SNAPSHOT"
+// Version is inherited from root project
 
 java.sourceCompatibility = JavaVersion.VERSION_21
 
 repositories {
     mavenCentral()
+}
+
+springBoot {
+    buildInfo()
 }
 
 dependencies {
