@@ -5,6 +5,7 @@ build/
 
 # Ignore build folders in submodules
 backend/build/
+backend/*.exe
 frontend/build/
 shared/build/
 

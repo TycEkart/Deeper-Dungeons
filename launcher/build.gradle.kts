@@ -35,7 +35,7 @@ tasks.bootJar {
 
 launch4j {
     productName = "Deeper Dungeons"
-    outfile = "Deeper Dungeons.exe"
+    outfile = "Deeper Dungeons v${project.version}.exe"
     icon = "${project.projectDir}/src/main/resources/logo.ico"
     headerType = "gui"
     jreMinVersion = "21"
