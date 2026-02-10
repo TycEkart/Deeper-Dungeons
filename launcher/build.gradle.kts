@@ -34,23 +34,17 @@ tasks.bootJar {
     launchScript()
 }
 
-//launch4j {
-//    mainClassName = "com.deeperdungeons.launcher.LauncherKt"
-//    // icon = "${project.rootDir}/frontend/src/jsMain/resources/logo.ico"
-//    outfile = "DeeperDungeons.exe"
-//    headerType = "console"
-//    jreMinVersion = "21"
-//    //downloadUrl = "https://adoptium.net/temurin/releases/?version=21"
-//
-//    // Configure Launch4j to use the Spring Boot fat jar
-//    copyConfigurable = listOf(tasks.bootJar)
-//    // Use backticks to escape the 'jar' property name to avoid conflict with the 'jar' task
-//    //`jar` = "lib/${tasks.bootJar.get().archiveFileName.get()}"
-//}
+launch4j {
+    productName = "Deeper Dungeons"
+    outfile = "Deeper Dungeons.exe"
+    icon = "${project.projectDir}/src/main/resources/logo.ico"
+    headerType = "gui"
 
-tasks.withType<edu.sc.seis.launch4j.tasks.DefaultLaunch4jTask> {
-    outfile.set("${rootProject.name}.exe")
-    mainClassName.set("com.deeperdungeons.launcher.LauncherKt")
-    icon.set("${project.projectDir}/src/main/resources/logo.ico")
-    productName.set("My App")
+    copyConfigurable = listOf(tasks.bootJar)
+    setJarFiles(project.files(tasks.bootJar))
+}
+
+// Disable the task that copies dependencies to a lib folder
+tasks.matching { it.name.startsWith("copyL4jLib") }.configureEach {
+    enabled = false
 }
