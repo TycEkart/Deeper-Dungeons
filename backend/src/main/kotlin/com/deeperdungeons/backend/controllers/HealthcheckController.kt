@@ -11,7 +11,7 @@ private val log = KotlinLogging.logger {}
 class HealthCheck {
 
     @GetMapping("/healthCheck")
-    fun healthCheck(@RequestParam postcode: String, @RequestParam houseNumber: Int): String {
+    fun healthCheck(): String {
         log.info { "healthCheck" }
         return "Alive"
     }

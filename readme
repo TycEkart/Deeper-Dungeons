@@ -8,3 +8,5 @@ Frontend: Start the development server:
 Shell Script
 ./gradlew :frontend:jsBrowserDevelopmentRun --continuous
 This will start a server (usually at localhost:8080 or similar) and automatically reload when you make changes to the Kotlin code in frontend/src/jsMain/kotlin.
+
+Create executable via: gradle launcher:createExe

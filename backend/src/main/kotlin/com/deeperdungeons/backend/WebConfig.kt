@@ -4,19 +4,19 @@ import org.springframework.context.annotation.Configuration
 import org.springframework.web.servlet.config.annotation.ResourceHandlerRegistry
 import org.springframework.web.servlet.config.annotation.ViewControllerRegistry
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer
+import java.nio.file.Paths
 
 @Configuration
 class WebConfig : WebMvcConfigurer {
 
     override fun addResourceHandlers(registry: ResourceHandlerRegistry) {
         // Serve uploaded images
+        // Use absolute path to ensure it points to the same location as the controller
+        val uploadDir = Paths.get("data/images").toAbsolutePath().toUri().toString()
         registry.addResourceHandler("/images/**")
-            .addResourceLocations("file:data/images/")
+            .addResourceLocations(uploadDir)
 
         // Serve static frontend files
-        // This must be after specific handlers if we want specific ones to take precedence,
-        // but /** matches everything.
-        // Spring matches patterns. /images/** is more specific than /**.
         registry.addResourceHandler("/**")
             .addResourceLocations("classpath:/static/")
     }

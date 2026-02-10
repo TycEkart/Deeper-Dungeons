@@ -64,7 +64,7 @@ class MonsterController(
         val monster = repository.findById(id).getOrNull()
             ?: throw ResponseStatusException(HttpStatus.NOT_FOUND, "Monster not found")
 
-        val uploadDir = Paths.get("data/images")
+        val uploadDir = Paths.get("data/images").toAbsolutePath()
         if (!Files.exists(uploadDir)) {
             Files.createDirectories(uploadDir)
         }
@@ -84,7 +84,7 @@ class MonsterController(
         val monster = repository.findById(id).getOrNull()
             ?: throw ResponseStatusException(HttpStatus.NOT_FOUND, "Monster not found")
 
-        val uploadDir = Paths.get("data/images")
+        val uploadDir = Paths.get("data/images").toAbsolutePath()
         if (!Files.exists(uploadDir)) {
             Files.createDirectories(uploadDir)
         }

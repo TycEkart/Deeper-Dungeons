@@ -12,9 +12,12 @@ import org.jetbrains.compose.web.css.*
 import org.jetbrains.compose.web.dom.*
 import com.deeperdungeons.frontend.api.fetchAllMonsters
 import com.deeperdungeons.frontend.api.saveMonster
+import com.deeperdungeons.frontend.api.shutdownBackend
 import com.deeperdungeons.frontend.api.getBaseUrl
 import com.deeperdungeons.frontend.styles.MonsterSheetStyle
 import kotlinx.browser.window
+import org.jetbrains.compose.web.attributes.ATarget
+import org.jetbrains.compose.web.attributes.target
 
 @Composable
 fun MonsterList(onMonsterClick: (Int) -> Unit, onGenerateClick: () -> Unit) {
@@ -143,6 +146,50 @@ fun MonsterList(onMonsterClick: (Int) -> Unit, onGenerateClick: () -> Unit) {
                 }
             }) {
                 Text("Generate New Monster")
+            }
+
+            // Developer Tools Section
+            Div({ style { marginTop(20.px); property("border-top", "1px solid #ccc"); paddingTop(10.px) } }) {
+                Div({ style { fontSize(12.px); color(Color("#666")); marginBottom(5.px) } }) { Text("Developer Tools") }
+                Div({ style { display(DisplayStyle.Flex); gap(10.px) } }) {
+                    A(href = "${getBaseUrl()}/h2-console", attrs = {
+                        target(ATarget.Blank)
+                        classes(MonsterSheetStyle.dndButton)
+                        style { textDecoration("none"); flex(1) }
+                    }) {
+                        Text("H2 Database")
+                    }
+                    
+                    A(href = "${getBaseUrl()}/swagger-ui/index.html", attrs = {
+                        target(ATarget.Blank)
+                        classes(MonsterSheetStyle.dndButton)
+                        style { textDecoration("none"); flex(1) }
+                    }) {
+                        Text("Swagger UI")
+                    }
+                }
+            }
+
+            Button(attrs = {
+                classes(MonsterSheetStyle.dndButton)
+                style {
+                    marginTop(20.px)
+                    width(100.percent)
+                    backgroundColor(Color.red)
+                    color(Color.white)
+                }
+                onClick {
+                    if (window.confirm("Are you sure you want to close the application?")) {
+                        scope.launch {
+                            shutdownBackend()
+                            window.close() // This might not work in all browsers if not opened by script
+                            // Fallback: show message
+                            window.document.body?.innerHTML = "<h1>Application Closed</h1><p>You can close this tab now.</p>"
+                        }
+                    }
+                }
+            }) {
+                Text("Exit Application")
             }
         }
     }

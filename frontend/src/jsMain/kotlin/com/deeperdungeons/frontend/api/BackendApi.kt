@@ -69,6 +69,15 @@ suspend fun uploadMonsterImage(id: Int, file: File): MonsterDto {
     ).body()
 }
 
+suspend fun shutdownBackend() {
+    try {
+        jsonClient.post("${getBaseUrl()}/system/shutdown")
+    } catch (e: Exception) {
+        // Ignore errors, as the server might shut down before responding fully
+        console.log("Shutdown request sent")
+    }
+}
+
 suspend fun readFileAsArrayBuffer(file: File): ArrayBuffer = suspendCoroutine { continuation ->
     val reader = FileReader()
     reader.onload = { 
