@@ -40,7 +40,7 @@ import com.deeperdungeons.shared.TraitDto
 import org.jetbrains.compose.web.attributes.placeholder
 
 @Composable
-fun MonsterSheet(initialMonster: MonsterDto, onBack: () -> Unit, onSave: (MonsterDto) -> Unit) {
+fun MonsterSheet(initialMonster: MonsterDto, onBack: () -> Unit, onExport: () -> Unit, onSave: (MonsterDto) -> Unit) {
     var monster by remember { mutableStateOf(initialMonster) }
     var isEditingEnabled by remember { mutableStateOf(false) }
     var showPrompt by remember { mutableStateOf(false) }
@@ -111,6 +111,13 @@ fun MonsterSheet(initialMonster: MonsterDto, onBack: () -> Unit, onSave: (Monste
 
                 // Export Button
                 if (monster.id != null) {
+                    Button(attrs = {
+                        classes(MonsterSheetStyle.dndButton)
+                        onClick { onExport() }
+                    }) {
+                        Text("Export Postcard")
+                    }
+
                     A(href = "${getBaseUrl()}/monsters/${monster.id}/export", attrs = {
                         target(ATarget.Blank)
                         classes(MonsterSheetStyle.dndButton)
