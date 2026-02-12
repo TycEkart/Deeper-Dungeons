@@ -24,6 +24,7 @@ import kotlinx.serialization.json.Json
 import org.jetbrains.compose.web.attributes.ATarget
 import org.jetbrains.compose.web.attributes.InputType
 import org.jetbrains.compose.web.attributes.target
+import org.jetbrains.compose.web.attributes.placeholder
 import org.w3c.dom.HTMLInputElement
 import org.w3c.files.FileReader
 
@@ -31,6 +32,23 @@ import org.w3c.files.FileReader
 fun MonsterList(onMonsterClick: (Int) -> Unit, onGenerateClick: () -> Unit) {
     var monsters by remember { mutableStateOf<List<MonsterDto>>(emptyList()) }
     var appVersion by remember { mutableStateOf("Loading...") }
+    
+    var searchQuery by remember { mutableStateOf("") }
+    var typeFilter by remember { mutableStateOf("") }
+    var minSize by remember { mutableStateOf(MonsterSize.Tiny.label) }
+    var maxSize by remember { mutableStateOf(MonsterSize.Gargantuan.label) }
+    var minCr by remember { mutableStateOf("0") }
+    var maxCr by remember { mutableStateOf("30") }
+    
+    val challengeRatings = remember { listOf("0", "1/8", "1/4", "1/2") + (1..30).map { it.toString() } }
+    val creatureTypes = remember {
+        listOf(
+            "Aberrations", "Beasts", "Celestials", "Constructs", "Dragons",
+            "Elementals", "Fey", "Fiends", "Giants", "Humanoids",
+            "Monstrosities", "Oozes", "Plants", "Undead"
+        )
+    }
+    
     val scope = rememberCoroutineScope()
 
     LaunchedEffect(Unit) {
@@ -51,12 +69,187 @@ fun MonsterList(onMonsterClick: (Int) -> Unit, onGenerateClick: () -> Unit) {
             }
         }
     }
+    
+    val filteredMonsters = remember(monsters, searchQuery, typeFilter, minSize, maxSize, minCr, maxCr) {
+        monsters.filter { monster ->
+            val nameMatch = monster.name.contains(searchQuery, ignoreCase = true)
+            
+            val normalizedTypeFilter = when (typeFilter.trim().lowercase()) {
+                "aberrations" -> "aberration"
+                "beasts" -> "beast"
+                "celestials" -> "celestial"
+                "constructs" -> "construct"
+                "dragons" -> "dragon"
+                "elementals" -> "elemental"
+                "fiends" -> "fiend"
+                "giants" -> "giant"
+                "humanoids" -> "humanoid"
+                "monstrosities" -> "monstrosity"
+                "oozes" -> "ooze"
+                "plants" -> "plant"
+                else -> typeFilter.trim()
+            }
+            
+            val typeMatch = if (typeFilter.isBlank()) true else monster.type.label.contains(normalizedTypeFilter, ignoreCase = true)
+            
+            val monsterSizeOrdinal = monster.size.ordinal
+            val minSizeOrdinal = MonsterSize.values().find { it.label == minSize }?.ordinal ?: 0
+            val maxSizeOrdinal = MonsterSize.values().find { it.label == maxSize }?.ordinal ?: MonsterSize.values().last().ordinal
+            
+            val sizeMatch = monsterSizeOrdinal in minSizeOrdinal..maxSizeOrdinal
+            
+            val monsterCrValue = parseChallengeRating(monster.challenge)
+            val minCrValue = parseChallengeRating(minCr)
+            val maxCrValue = parseChallengeRating(maxCr)
+            
+            nameMatch && typeMatch && sizeMatch && (monsterCrValue >= minCrValue && monsterCrValue <= maxCrValue)
+        }
+    }
 
     Div({ classes(MonsterSheetStyle.listContainer) }) {
         H1({ classes(MonsterSheetStyle.monsterName) }) { Text("Deeper Dungeons - Monsters") }
         
+        // Search and Filter
+        Div({
+            style {
+                marginTop(10.px)
+                marginBottom(15.px)
+                display(DisplayStyle.Flex)
+                flexDirection(FlexDirection.Column)
+                gap(10.px)
+            }
+        }) {
+            Input(InputType.Text) {
+                placeholder("Search by name...")
+                value(searchQuery)
+                onInput { searchQuery = it.value }
+                style {
+                    width(100.percent)
+                    padding(8.px)
+                    fontSize(16.px)
+                    borderRadius(4.px)
+                    border(1.px, LineStyle.Solid, Color("#ccc"))
+                    property("box-sizing", "border-box")
+                }
+            }
+            
+            // Type Filter
+            Div({
+                style {
+                    display(DisplayStyle.Flex)
+                    alignItems(AlignItems.Center)
+                    gap(10.px)
+                    fontSize(14.px)
+                }
+            }) {
+                Text("Type: ")
+                Input(InputType.Text) {
+                    attr("list", "monster-types")
+                    placeholder("Filter by type...")
+                    value(typeFilter)
+                    onInput { typeFilter = it.value }
+                    style {
+                        padding(5.px)
+                        borderRadius(4.px)
+                        border(1.px, LineStyle.Solid, Color("#ccc"))
+                        flex(1)
+                    }
+                }
+                Datalist({ id("monster-types") }) {
+                    creatureTypes.forEach { type ->
+                        Option(value = type)
+                    }
+                }
+            }
+            
+            // Size Range Filter
+            Div({
+                style {
+                    display(DisplayStyle.Flex)
+                    alignItems(AlignItems.Center)
+                    gap(10.px)
+                    fontSize(14.px)
+                }
+            }) {
+                Text("Size Range: ")
+                Select({
+                    style { padding(5.px); borderRadius(4.px); border(1.px, LineStyle.Solid, Color("#ccc")) }
+                    onChange { minSize = it.target.value }
+                }) {
+                    MonsterSize.values().forEach { size ->
+                        Option(
+                            value = size.label,
+                            attrs = {
+                                if (size.label == minSize) attr("selected", "")
+                            }
+                        ) {
+                            Text(size.label)
+                        }
+                    }
+                }
+                Text(" to ")
+                Select({
+                    style { padding(5.px); borderRadius(4.px); border(1.px, LineStyle.Solid, Color("#ccc")) }
+                    onChange { maxSize = it.target.value }
+                }) {
+                    MonsterSize.values().forEach { size ->
+                        Option(
+                            value = size.label,
+                            attrs = {
+                                if (size.label == maxSize) attr("selected", "")
+                            }
+                        ) {
+                            Text(size.label)
+                        }
+                    }
+                }
+            }
+            
+            Div({
+                style {
+                    display(DisplayStyle.Flex)
+                    alignItems(AlignItems.Center)
+                    gap(10.px)
+                    fontSize(14.px)
+                }
+            }) {
+                Text("CR Range: ")
+                Select({
+                    style { padding(5.px); borderRadius(4.px); border(1.px, LineStyle.Solid, Color("#ccc")) }
+                    onChange { minCr = it.target.value }
+                }) {
+                    challengeRatings.forEach { cr ->
+                        Option(
+                            value = cr,
+                            attrs = {
+                                if (cr == minCr) attr("selected", "")
+                            }
+                        ) {
+                            Text(cr)
+                        }
+                    }
+                }
+                Text(" to ")
+                Select({
+                    style { padding(5.px); borderRadius(4.px); border(1.px, LineStyle.Solid, Color("#ccc")) }
+                    onChange { maxCr = it.target.value }
+                }) {
+                    challengeRatings.forEach { cr ->
+                        Option(
+                            value = cr,
+                            attrs = {
+                                if (cr == maxCr) attr("selected", "")
+                            }
+                        ) {
+                            Text(cr)
+                        }
+                    }
+                }
+            }
+        }
+        
         Div({ style { display(DisplayStyle.Flex); flexDirection(FlexDirection.Column); gap(10.px) } }) {
-            monsters.forEach { monster ->
+            filteredMonsters.forEach { monster ->
                 Div({
                     classes(MonsterSheetStyle.listItem)
                     style {
@@ -315,5 +508,15 @@ fun MonsterList(onMonsterClick: (Int) -> Unit, onGenerateClick: () -> Unit) {
                 Text("Exit Application")
             }
         }
+    }
+}
+
+private fun parseChallengeRating(cr: String): Double {
+    val value = cr.split(" ").firstOrNull() ?: return 0.0
+    return when (value) {
+        "1/8" -> 0.125
+        "1/4" -> 0.25
+        "1/2" -> 0.5
+        else -> value.toDoubleOrNull() ?: 0.0
     }
 }
