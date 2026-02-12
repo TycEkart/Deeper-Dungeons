@@ -3,16 +3,19 @@ package com.deeperdungeons.frontend.screens
 import androidx.compose.runtime.*
 import com.deeperdungeons.shared.MonsterDto
 import com.deeperdungeons.frontend.api.fetchMonster
+import com.deeperdungeons.frontend.api.getBaseUrl
 import com.deeperdungeons.frontend.components.html2canvas
 import com.deeperdungeons.frontend.styles.MonsterSheetStyle
 import kotlinx.coroutines.launch
 import org.jetbrains.compose.web.css.*
 import org.jetbrains.compose.web.dom.*
-import org.w3c.dom.DragEvent
 import org.w3c.dom.HTMLElement
 import org.w3c.dom.HTMLAnchorElement
 import org.w3c.dom.HTMLCanvasElement
+import org.w3c.dom.Node
+import org.w3c.dom.DOMRect
 import kotlinx.browser.document
+import kotlinx.browser.window
 import org.jetbrains.compose.web.attributes.Draggable
 import kotlin.js.Date
 import kotlin.js.JSON
@@ -28,13 +31,16 @@ fun ExportScreen(monsterId: Int, onBack: () -> Unit) {
         val type: String, 
         val label: String, 
         val value: String,
-        val children: List<PostcardItem> = emptyList()
+        val children: List<PostcardItem> = emptyList(),
+        val width: Double? = null
     )
     var postcardItems by remember { mutableStateOf(listOf<PostcardItem>()) }
     var isLandscape by remember { mutableStateOf(false) }
     var fontSizeScale by remember { mutableStateOf(1.0) }
     var paddingScale by remember { mutableStateOf(1.0) }
     var marginScale by remember { mutableStateOf(1.0) }
+    var dropIndicatorIndex by remember { mutableStateOf<Int?>(null) }
+    var dropIndicatorType by remember { mutableStateOf("HORIZONTAL") }
 
     LaunchedEffect(monsterId) {
         scope.launch {
@@ -56,242 +62,78 @@ fun ExportScreen(monsterId: Int, onBack: () -> Unit) {
     Div({
         style {
             display(DisplayStyle.Flex)
+            flexDirection(FlexDirection.Column)
             height(100.vh)
             padding(20.px)
             gap(20.px)
         }
     }) {
-        // Left Panel: Draggable Items
+        // Top Menu Bar
         Div({
-            classes(MonsterSheetStyle.listContainer)
             style {
-                width(300.px)
-                overflowY("auto")
-                padding(10.px)
-                property("margin", "0")
+                display(DisplayStyle.Flex)
+                gap(15.px)
+                alignItems(AlignItems.Center)
+                width(100.percent)
+                paddingBottom(10.px)
+                property("border-bottom", "1px solid #ccc")
+                flexWrap(FlexWrap.Wrap)
             }
         }) {
-            H3({
-                classes(MonsterSheetStyle.header)
-                style { textAlign("center") }
-            }) { Text("Drag items to postcard") }
-            
-            data class DraggableOption(val type: String, val label: String, val value: String)
-            val draggableOptions = mutableListOf<DraggableOption>()
-            
-            // Special item: Line Break
-            draggableOptions.add(DraggableOption("SEPARATOR", "Line Break", ""))
-            
-            draggableOptions.add(DraggableOption("PROPERTY", "Name", m.name))
-            draggableOptions.add(DraggableOption("PROPERTY", "HP", m.hitPoints))
-            draggableOptions.add(DraggableOption("PROPERTY", "AC", "${m.armorClass.value}"))
-            draggableOptions.add(DraggableOption("PROPERTY", "Speed", m.speed))
-            
-            // Stats Block
-            val statsObj = js("{}")
-            statsObj["STR"] = m.str.value
-            statsObj["DEX"] = m.dex.value
-            statsObj["CON"] = m.con.value
-            statsObj["INT"] = m.int.value
-            statsObj["WIS"] = m.wis.value
-            statsObj["CHA"] = m.cha.value
-            draggableOptions.add(DraggableOption("STATS_BLOCK", "Stats", JSON.stringify(statsObj)))
-            
-            if (!m.savingThrows.isNullOrBlank()) {
-                draggableOptions.add(DraggableOption("PROPERTY", "Saving Throws", m.savingThrows!!))
-            }
-            if (!m.skills.isNullOrBlank()) {
-                draggableOptions.add(DraggableOption("PROPERTY", "Skills", m.skills!!))
-            }
-            
-            draggableOptions.add(DraggableOption("PROPERTY", "Challenge", m.challenge))
-            draggableOptions.add(DraggableOption("PROPERTY", "Senses", m.senses))
-            draggableOptions.add(DraggableOption("PROPERTY", "Languages", m.languages))
-            
-            if (m.traits.isNotEmpty()) {
-                draggableOptions.add(DraggableOption("GROUP_TRAITS", "All Traits", "Drag to add all traits"))
-                m.traits.forEach {
-                    draggableOptions.add(DraggableOption("TRAIT", it.name, it.description))
-                }
-            }
-            
-            if (m.actions.isNotEmpty()) {
-                draggableOptions.add(DraggableOption("GROUP_ACTIONS", "All Actions", "Drag to add all actions"))
-                m.actions.forEach { 
-                    draggableOptions.add(DraggableOption("ACTION", it.name, it.description)) 
-                }
-            }
-            
-            if (m.reactions.isNotEmpty()) {
-                draggableOptions.add(DraggableOption("GROUP_REACTIONS", "All Reactions", "Drag to add all reactions"))
-                m.reactions.forEach { 
-                    draggableOptions.add(DraggableOption("REACTION", it.name, it.description)) 
-                }
-            }
-
-            draggableOptions.forEach { option ->
-                // Check if item already exists (match type, label and value to be sure)
-                // Separators can be added multiple times
-                // Groups are always draggable (they add missing items or create a group)
-                val isGroup = option.type.startsWith("GROUP_")
-                val isAlreadyAdded = if (option.type == "SEPARATOR" || isGroup) false else postcardItems.any { 
-                    it.type == option.type && it.label == option.label && it.value == option.value 
-                }
-                
-                Div({
-                    if (!isAlreadyAdded) {
-                        draggable(Draggable.True)
-                    }
-                    classes(MonsterSheetStyle.listItem)
-                    style {
-                        cursor(if (isAlreadyAdded) "default" else "grab")
-                        flexDirection(FlexDirection.Column)
-                        alignItems(AlignItems.Start)
-                        gap(5.px)
-                        if (isAlreadyAdded) {
-                            opacity(0.5)
-                            backgroundColor(Color("#e0e0e0"))
-                        }
-                        if (isGroup) {
-                            backgroundColor(Color("#f0e6d2")) // Slightly different color for groups
-                            border(1.px, LineStyle.Dashed, Color("#58180d"))
-                        }
-                    }
-                    if (!isAlreadyAdded) {
-                        onDragStart { event ->
-                            val dragData = js("{}")
-                            dragData.source = "list"
-                            dragData.type = option.type
-                            dragData.label = option.label
-                            dragData.value = option.value
-                            event.dataTransfer?.setData("text/plain", JSON.stringify(dragData))
-                        }
-                    }
-                }) {
-                    if (option.type == "SEPARATOR") {
-                        Span({ style { fontWeight("bold"); color(Color("#58180d")) } }) { Text("--- Line Break ---") }
-                    } else if (option.type == "STATS_BLOCK") {
-                        Span({ style { fontWeight("bold"); color(Color("#58180d")) } }) { Text("Ability Scores") }
-                        Span({ style { fontSize(12.px) } }) { Text("STR | DEX | CON | INT | WIS | CHA") }
-                    } else {
-                        Div({ style { display(DisplayStyle.Flex); alignItems(AlignItems.Center); gap(5.px) } }) {
-                            if (isGroup) {
-                                Span({ 
-                                    style { 
-                                        fontSize(20.px)
-                                        color(Color("#58180d"))
-                                        lineHeight(1.em)
-                                    } 
-                                }) { Text("•") }
-                            }
-                            
-                            Span({ style { fontWeight("bold"); color(Color("#58180d")) } }) { 
-                                val prefix = when(option.type) {
-                                    "ACTION" -> "[A] "
-                                    "REACTION" -> "[R] "
-                                    "TRAIT" -> "[T] "
-                                    else -> ""
-                                }
-                                Text(prefix + option.label) 
-                            }
-                        }
-                        Span({ 
-                            style { 
-                                fontSize(14.px)
-                                whiteSpace("nowrap")
-                                overflow("hidden")
-                                property("text-overflow", "ellipsis")
-                                maxWidth(250.px)
-                                display(DisplayStyle.Block)
-                            } 
-                        }) { Text(option.value) }
-                    }
-                }
-            }
-            
             Button(attrs = {
                 classes(MonsterSheetStyle.dndButton)
-                style {
-                    marginTop(20.px)
-                    width(100.percent)
-                }
-                onClick {
-                    val newItems = mutableListOf<PostcardItem>()
-                    var currentId = Date.now()
-                    
-                    draggableOptions.forEach { option ->
-                        if (option.type != "SEPARATOR" && !option.type.startsWith("GROUP_")) {
-                            newItems.add(PostcardItem(
-                                id = currentId++,
-                                type = option.type,
-                                label = option.label,
-                                value = option.value
-                            ))
-                        }
-                    }
-                    postcardItems = newItems
-                }
-            }) { Text("Add All Items") }
-            
-            Div({ style { display(DisplayStyle.Flex); gap(10.px); marginTop(20.px); alignItems(AlignItems.Center) } }) {
+                onClick { onBack() } 
+            }) { Text("Back") }
+
+            // Font Size
+            Div({ style { display(DisplayStyle.Flex); gap(5.px); alignItems(AlignItems.Center) } }) {
+                Span({ style { color(Color.white) } }) { Text("Font:") }
                 Button(attrs = {
                     classes(MonsterSheetStyle.dndButton)
                     onClick { fontSizeScale = (fontSizeScale - 0.1).coerceAtLeast(0.5) }
-                }) { Text("A-") }
-                
-                Span { Text("${(fontSizeScale * 100).toInt()}%") }
-                
+                }) { Text("-") }
+                Span({ style { color(Color.white) } }) { Text("${(fontSizeScale * 100).toInt()}%") }
                 Button(attrs = {
                     classes(MonsterSheetStyle.dndButton)
                     onClick { fontSizeScale = (fontSizeScale + 0.1).coerceAtMost(2.0) }
-                }) { Text("A+") }
+                }) { Text("+") }
             }
-
-            Div({ style { display(DisplayStyle.Flex); gap(10.px); marginTop(10.px); alignItems(AlignItems.Center) } }) {
+            
+            // Padding
+            Div({ style { display(DisplayStyle.Flex); gap(5.px); alignItems(AlignItems.Center) } }) {
+                Span({ style { color(Color.white) } }) { Text("Pad:") }
                 Button(attrs = {
                     classes(MonsterSheetStyle.dndButton)
                     onClick { paddingScale = (paddingScale - 0.1).coerceAtLeast(0.0) }
-                }) { Text("P-") }
-                
-                Span { Text("${(paddingScale * 100).toInt()}%") }
-                
+                }) { Text("-") }
+                Span({ style { color(Color.white) } }) { Text("${(paddingScale * 100).toInt()}%") }
                 Button(attrs = {
                     classes(MonsterSheetStyle.dndButton)
                     onClick { paddingScale = (paddingScale + 0.1).coerceAtMost(2.0) }
-                }) { Text("P+") }
+                }) { Text("+") }
             }
 
-            Div({ style { display(DisplayStyle.Flex); gap(10.px); marginTop(10.px); alignItems(AlignItems.Center) } }) {
+            // Margin
+            Div({ style { display(DisplayStyle.Flex); gap(5.px); alignItems(AlignItems.Center) } }) {
+                Span({ style { color(Color.white) } }) { Text("Marg:") }
                 Button(attrs = {
                     classes(MonsterSheetStyle.dndButton)
                     onClick { marginScale = (marginScale - 0.1).coerceAtLeast(0.0) }
-                }) { Text("M-") }
-                
-                Span { Text("${(marginScale * 100).toInt()}%") }
-                
+                }) { Text("-") }
+                Span({ style { color(Color.white) } }) { Text("${(marginScale * 100).toInt()}%") }
                 Button(attrs = {
                     classes(MonsterSheetStyle.dndButton)
                     onClick { marginScale = (marginScale + 0.1).coerceAtMost(2.0) }
-                }) { Text("M+") }
+                }) { Text("+") }
             }
 
             Button(attrs = {
                 classes(MonsterSheetStyle.dndButton)
-                style {
-                    marginTop(10.px)
-                    width(100.percent)
-                }
-                onClick {
-                    isLandscape = !isLandscape
-                }
-            }) { Text(if (isLandscape) "Switch to Portrait" else "Switch to Landscape") }
+                onClick { isLandscape = !isLandscape }
+            }) { Text(if (isLandscape) "Portrait" else "Landscape") }
 
             Button(attrs = {
                 classes(MonsterSheetStyle.dndButton)
-                style {
-                    marginTop(10.px)
-                    width(100.percent)
-                }
                 onClick {
                     val element = document.getElementById("postcard-area") as? HTMLElement
                     if (element != null) {
@@ -307,488 +149,1066 @@ fun ExportScreen(monsterId: Int, onBack: () -> Unit) {
                         }
                     }
                 }
-            }) { Text("Download Postcard PNG") }
-
-            Button(attrs = {
-                classes(MonsterSheetStyle.dndButton)
-                style {
-                    marginTop(10.px)
-                    width(100.percent)
-                }
-                onClick { onBack() } 
-            }) { Text("Back to Details") }
+            }) { Text("Download PNG") }
         }
 
-        // Right Panel: Postcard Preview
+        // Main Content
         Div({
             style {
-                flex(1)
                 display(DisplayStyle.Flex)
-                justifyContent(JustifyContent.Center)
-                alignItems(AlignItems.Center)
+                flex(1)
+                gap(20.px)
+                overflow("hidden")
+                width(100.percent)
             }
         }) {
-            // The Postcard
+            // Left Panel: Draggable Items
             Div({
-                id("postcard-area")
-                classes(MonsterSheetStyle.sheetContainer)
+                classes(MonsterSheetStyle.listContainer)
                 style {
-                    if (isLandscape) {
-                        property("width", "14.8cm")
-                        property("height", "10cm")
+                    width(300.px)
+                    overflowY("auto")
+                    padding(10.px)
+                    property("margin", "0")
+                    height(100.percent)
+                }
+            }) {
+                H3({
+                    classes(MonsterSheetStyle.header)
+                    style { textAlign("center") }
+                }) { Text("Drag items to postcard") }
+                
+                data class DraggableOption(val type: String, val label: String, val value: String)
+                val draggableOptions = mutableListOf<DraggableOption>()
+                
+                // Special item: Line
+                draggableOptions.add(DraggableOption("SEPARATOR", "Line", ""))
+                
+                if (!m.imageUrl.isNullOrBlank()) {
+                    val imgData = js("{}")
+                    val url = m.imageUrl!!
+                    if (url.startsWith("http") || url.startsWith("data:")) {
+                        imgData.url = url
                     } else {
-                        property("width", "10cm")
-                        property("height", "14.8cm")
+                        val baseUrl = getBaseUrl()
+                        imgData.url = if (url.startsWith("/")) "$baseUrl$url" else "$baseUrl/$url"
                     }
-                    position(Position.Relative)
-                    overflow("hidden")
+                    imgData.scale = 1.0
+                    imgData.align = "right"
+                    draggableOptions.add(DraggableOption("IMAGE", "Monster Image", JSON.stringify(imgData)))
+                }
+
+                draggableOptions.add(DraggableOption("PROPERTY", "Name", m.name))
+                draggableOptions.add(DraggableOption("PROPERTY", "HP", m.hitPoints))
+                draggableOptions.add(DraggableOption("PROPERTY", "AC", "${m.armorClass.value}"))
+                draggableOptions.add(DraggableOption("PROPERTY", "Speed", m.speed))
+                
+                // Stats Block
+                val statsObj = js("{}")
+                statsObj["STR"] = m.str.value
+                statsObj["DEX"] = m.dex.value
+                statsObj["CON"] = m.con.value
+                statsObj["INT"] = m.int.value
+                statsObj["WIS"] = m.wis.value
+                statsObj["CHA"] = m.cha.value
+                draggableOptions.add(DraggableOption("STATS_BLOCK", "Stats", JSON.stringify(statsObj)))
+                
+                if (!m.savingThrows.isNullOrBlank()) {
+                    draggableOptions.add(DraggableOption("PROPERTY", "Saving Throws", m.savingThrows!!))
+                }
+                if (!m.skills.isNullOrBlank()) {
+                    draggableOptions.add(DraggableOption("PROPERTY", "Skills", m.skills!!))
+                }
+                
+                draggableOptions.add(DraggableOption("PROPERTY", "Challenge", m.challenge))
+                draggableOptions.add(DraggableOption("PROPERTY", "Senses", m.senses))
+                draggableOptions.add(DraggableOption("PROPERTY", "Languages", m.languages))
+                
+                if (m.traits.isNotEmpty()) {
+                    draggableOptions.add(DraggableOption("GROUP_TRAITS", "All Traits", "Drag to add all traits"))
+                    m.traits.forEach {
+                        draggableOptions.add(DraggableOption("TRAIT", it.name, it.description))
+                    }
+                }
+                
+                if (m.actions.isNotEmpty()) {
+                    draggableOptions.add(DraggableOption("GROUP_ACTIONS", "All Actions", "Drag to add all actions"))
+                    m.actions.forEach { 
+                        draggableOptions.add(DraggableOption("ACTION", it.name, it.description)) 
+                    }
+                }
+                
+                if (m.reactions.isNotEmpty()) {
+                    draggableOptions.add(DraggableOption("GROUP_REACTIONS", "All Reactions", "Drag to add all reactions"))
+                    m.reactions.forEach { 
+                        draggableOptions.add(DraggableOption("REACTION", it.name, it.description)) 
+                    }
+                }
+
+                draggableOptions.forEach { option ->
+                    val isGroup = option.type.startsWith("GROUP_")
+                    
+                    // Check if item exists as top-level or inside a group
+                    val isAlreadyAdded = if (option.type == "SEPARATOR" || isGroup) false else postcardItems.any { 
+                        (it.type == option.type && it.label == option.label && it.value == option.value) ||
+                        (it.children.any { child -> child.type == option.type && child.label == option.label && child.value == option.value })
+                    }
+                    
+                    Div({
+                        if (!isAlreadyAdded) {
+                            draggable(Draggable.True)
+                        }
+                        classes(MonsterSheetStyle.listItem)
+                        style {
+                            cursor(if (isAlreadyAdded) "default" else "grab")
+                            flexDirection(FlexDirection.Column)
+                            alignItems(AlignItems.Start)
+                            gap(5.px)
+                            if (isAlreadyAdded) {
+                                opacity(0.5)
+                                backgroundColor(Color("#e0e0e0"))
+                            }
+                            if (isGroup) {
+                                backgroundColor(Color("#f0e6d2"))
+                                border(1.px, LineStyle.Dashed, Color("#58180d"))
+                            }
+                        }
+                        if (!isAlreadyAdded) {
+                            onDragStart { event ->
+                                val dragData = js("{}")
+                                dragData.source = "list"
+                                dragData.type = option.type
+                                dragData.label = option.label
+                                dragData.value = option.value
+                                event.dataTransfer?.setData("text/plain", JSON.stringify(dragData))
+                            }
+                        }
+                    }) {
+                        when (option.type) {
+                            "SEPARATOR" -> {
+                                Span({ style { fontWeight("bold"); color(Color("#58180d")) } }) { Text("--- Line ---") }
+                            }
+                            "STATS_BLOCK" -> {
+                                Span({ style { fontWeight("bold"); color(Color("#58180d")) } }) { Text("Ability Scores") }
+                                Span({ style { fontSize(12.px) } }) { Text("STR | DEX | CON | INT | WIS | CHA") }
+                            }
+                            "IMAGE" -> {
+                                Span({ style { fontWeight("bold"); color(Color("#58180d")) } }) { Text("Monster Image") }
+                            }
+                            else -> {
+                                Div({ style { display(DisplayStyle.Flex); alignItems(AlignItems.Center); gap(5.px) } }) {
+                                    if (isGroup) {
+                                        Span({ 
+                                            style { 
+                                                fontSize(20.px)
+                                                color(Color("#58180d"))
+                                                lineHeight(1.em)
+                                            } 
+                                        }) { Text("•") }
+                                    }
+                                    
+                                    Span({ style { fontWeight("bold"); color(Color("#58180d")) } }) { 
+                                        val prefix = when(option.type) {
+                                            "ACTION" -> "[A] "
+                                            "REACTION" -> "[R] "
+                                            "TRAIT" -> "[T] "
+                                            else -> ""
+                                        }
+                                        Text(prefix + option.label) 
+                                    }
+                                }
+                                Span({ 
+                                    style { 
+                                        fontSize(14.px)
+                                        whiteSpace("nowrap")
+                                        overflow("hidden")
+                                        property("text-overflow", "ellipsis")
+                                        maxWidth(250.px)
+                                        display(DisplayStyle.Block)
+                                    } 
+                                }) { Text(option.value) }
+                            }
+                        }
+                    }
+                }
+                
+                // ... Buttons ...
+                Button(attrs = {
+                    classes(MonsterSheetStyle.dndButton)
+                    style { marginTop(20.px); width(100.percent) }
+                    onClick {
+                        val newItems = mutableListOf<PostcardItem>()
+                        var currentId = Date.now()
+                        
+                        draggableOptions.forEach { option ->
+                            if (option.type != "SEPARATOR" && !option.type.startsWith("GROUP_")) {
+                                newItems.add(PostcardItem(id = currentId++, type = option.type, label = option.label, value = option.value))
+                            }
+                        }
+                        
+                        val groupedItems = mutableListOf<PostcardItem>()
+                        
+                        // Add properties
+                        newItems.filter { it.type == "PROPERTY" || it.type == "STATS_BLOCK" || it.type == "IMAGE" }.forEach { groupedItems.add(it) }
+                        
+                        // Add Traits Group
+                        val traits = newItems.filter { it.type == "TRAIT" }
+                        if (traits.isNotEmpty()) {
+                            groupedItems.add(PostcardItem(currentId++, "GROUP_TRAITS", "Traits", "", traits))
+                        }
+                        
+                        // Add Actions Group
+                        val actions = newItems.filter { it.type == "ACTION" }
+                        if (actions.isNotEmpty()) {
+                            groupedItems.add(PostcardItem(currentId++, "GROUP_ACTIONS", "Actions", "", actions))
+                        }
+                        
+                        // Add Reactions Group
+                        val reactions = newItems.filter { it.type == "REACTION" }
+                        if (reactions.isNotEmpty()) {
+                            groupedItems.add(PostcardItem(currentId++, "GROUP_REACTIONS", "Reactions", "", reactions))
+                        }
+                        
+                        postcardItems = groupedItems
+                    }
+                }) { Text("Add All Items") }
+            }
+
+            // Right Panel: Postcard Preview
+            Div({
+                style {
+                    flex(1)
                     display(DisplayStyle.Flex)
-                    flexDirection(FlexDirection.Column)
-                    alignItems(AlignItems.Start)
+                    justifyContent(JustifyContent.Center)
+                    alignItems(AlignItems.Center)
+                    overflow("auto")
+                    height(100.percent)
                 }
-                onDragOver { event ->
-                    event.preventDefault()
-                }
-                onDrop { event ->
-                    event.preventDefault()
-                    val data = event.dataTransfer?.getData("text/plain")
-                    if (data != null) {
-                        try {
-                            val json = JSON.parse<dynamic>(data)
-                            val source = json.source as String
-                            val type = json.type as String
-                            val label = json.label as String
-                            val value = json.value as String
-                            val id = if (source == "postcard") json.id as Double else Date.now()
+            }) {
+                // The Postcard
+                Div({
+                    id("postcard-area")
+                    classes(MonsterSheetStyle.sheetContainer)
+                    style {
+                        if (isLandscape) {
+                            property("width", "14.8cm")
+                            property("height", "10cm")
+                        } else {
+                            property("width", "10cm")
+                            property("height", "14.8cm")
+                        }
+                        position(Position.Relative)
+                        property("overflow", "visible")
+                        display(DisplayStyle.Block)
+                    }
+                    onDragOver { event -> 
+                        event.preventDefault()
+                        val container = event.currentTarget as HTMLElement
+                        val children = container.children
+                        var insertIndex = postcardItems.size
+                        var itemIndex = 0
+                        var found = false
+                        var lastRect: DOMRect? = null
+                        
+                        for (i in 0 until children.length) {
+                            val child = children.item(i) as HTMLElement
+                            if (!child.getAttribute("data-is-item").toBoolean()) continue
+                            val rect = child.getBoundingClientRect()
+                            lastRect = rect
                             
-                            // Determine insertion index
-                            val container = event.currentTarget as HTMLElement
-                            val children = container.children
-                            var insertIndex = postcardItems.size
+                            val childMiddleX = rect.left + rect.width / 2
                             
-                            var itemIndex = 0
-                            var found = false
-                            for (i in 0 until children.length) {
-                                val child = children.item(i) as HTMLElement
-                                // Skip headers (if any left, though we moved to groups)
-                                if (!child.getAttribute("data-is-item").toBoolean()) continue
-                                
-                                val rect = child.getBoundingClientRect()
-                                val childMiddleY = rect.top + rect.height / 2
-                                if (event.clientY < childMiddleY) {
+                            if (event.clientY < rect.top) {
+                                insertIndex = itemIndex
+                                found = true
+                                dropIndicatorType = "HORIZONTAL"
+                                break
+                            }
+                            
+                            if (event.clientY < rect.bottom) {
+                                if (event.clientX < childMiddleX) {
                                     insertIndex = itemIndex
                                     found = true
+                                    dropIndicatorType = "VERTICAL"
                                     break
                                 }
-                                itemIndex++
                             }
-                            if (!found) insertIndex = postcardItems.size
+                            
+                            itemIndex++
+                        }
+                        if (!found) {
+                            insertIndex = postcardItems.size
+                            if (lastRect != null) {
+                                if (event.clientY > lastRect.bottom) {
+                                    dropIndicatorType = "HORIZONTAL"
+                                } else {
+                                    dropIndicatorType = "VERTICAL"
+                                }
+                            } else {
+                                dropIndicatorType = "HORIZONTAL"
+                            }
+                        }
+                        dropIndicatorIndex = insertIndex
+                    }
+                    onDragLeave { event ->
+                        val container = event.currentTarget as HTMLElement
+                        val related = event.relatedTarget as? Node
+                        if (related == null || !container.contains(related)) {
+                            dropIndicatorIndex = null
+                        }
+                    }
+                    onDrop { event ->
+                        event.preventDefault()
+                        dropIndicatorIndex = null
+                        val data = event.dataTransfer?.getData("text/plain")
+                        if (data != null) {
+                            try {
+                                val json = JSON.parse<dynamic>(data)
+                                val source = json.source as String
+                                val type = json.type as String
+                                val label = json.label as String
+                                val value = json.value as String
+                                val id = if (source == "postcard" || source == "child") json.id as Double else Date.now()
+                                
+                                if (source == "child") return@onDrop
 
-                            // Handle Group Drops
-                            if (type.startsWith("GROUP_")) {
-                                if (source == "list") {
-                                    // Create a new group item
-                                    val childrenItems = mutableListOf<PostcardItem>()
-                                    var currentId = Date.now()
+                                // Determine insertion index
+                                val container = event.currentTarget as HTMLElement
+                                val children = container.children
+                                var insertIndex = postcardItems.size
+                                var itemIndex = 0
+                                var found = false
+                                for (i in 0 until children.length) {
+                                    val child = children.item(i) as HTMLElement
+                                    if (!child.getAttribute("data-is-item").toBoolean()) continue
+                                    val rect = child.getBoundingClientRect()
                                     
-                                    when (type) {
-                                        "GROUP_TRAITS" -> {
-                                            m.traits.forEach { 
-                                                childrenItems.add(PostcardItem(currentId++, "TRAIT", it.name, it.description))
-                                            }
-                                        }
-                                        "GROUP_ACTIONS" -> {
-                                            m.actions.forEach { 
-                                                childrenItems.add(PostcardItem(currentId++, "ACTION", it.name, it.description))
-                                            }
-                                        }
-                                        "GROUP_REACTIONS" -> {
-                                            m.reactions.forEach { 
-                                                childrenItems.add(PostcardItem(currentId++, "REACTION", it.name, it.description))
-                                            }
+                                    val childMiddleX = rect.left + rect.width / 2
+                                    
+                                    // Check if cursor is "before" this element
+                                    // 1. If cursor is significantly above the element (previous row) -> Insert here
+                                    if (event.clientY < rect.top) {
+                                        insertIndex = itemIndex
+                                        found = true
+                                        break
+                                    }
+                                    
+                                    // 2. If cursor is within the vertical span of the element -> Check horizontal
+                                    if (event.clientY < rect.bottom) {
+                                        if (event.clientX < childMiddleX) {
+                                            insertIndex = itemIndex
+                                            found = true
+                                            break
                                         }
                                     }
                                     
-                                    val groupItem = PostcardItem(
-                                        id = id,
-                                        type = type,
-                                        label = label,
-                                        value = value,
-                                        children = childrenItems
-                                    )
-                                    
-                                    val newList = postcardItems.toMutableList()
-                                    if (insertIndex > newList.size) insertIndex = newList.size
-                                    newList.add(insertIndex, groupItem)
-                                    postcardItems = newList
+                                    itemIndex++
+                                }
+                                if (!found) insertIndex = postcardItems.size
+
+                                // Helper to merge into existing group
+                                fun mergeIntoGroup(groupType: String, items: List<PostcardItem>) {
+                                    val existingGroupIndex = postcardItems.indexOfFirst { it.type == groupType }
+                                    if (existingGroupIndex != -1) {
+                                        val group = postcardItems[existingGroupIndex]
+                                        val newChildren = group.children.toMutableList()
+                                        items.forEach { newItem ->
+                                            if (newChildren.none { it.label == newItem.label && it.value == newItem.value }) {
+                                                newChildren.add(newItem)
+                                            }
+                                        }
+                                        val newGroup = group.copy(children = newChildren)
+                                        val newList = postcardItems.toMutableList()
+                                        newList[existingGroupIndex] = newGroup
+                                        postcardItems = newList
+                                    } else {
+                                        // Create new group
+                                        val groupLabel = when(groupType) {
+                                            "GROUP_ACTIONS" -> "Actions"
+                                            "GROUP_REACTIONS" -> "Reactions"
+                                            "GROUP_TRAITS" -> "Traits"
+                                            else -> ""
+                                        }
+                                        val newGroup = PostcardItem(Date.now(), groupType, groupLabel, "", items)
+                                        val newList = postcardItems.toMutableList()
+                                        if (insertIndex > newList.size) insertIndex = newList.size
+                                        newList.add(insertIndex, newGroup)
+                                        postcardItems = newList
+                                    }
+                                }
+
+                                // Handle Group Drops (from list)
+                                if (type.startsWith("GROUP_")) {
+                                    if (source == "list") {
+                                        val childrenItems = mutableListOf<PostcardItem>()
+                                        var currentId = Date.now()
+                                        when (type) {
+                                            "GROUP_TRAITS" -> m.traits.forEach { childrenItems.add(PostcardItem(currentId++, "TRAIT", it.name, it.description)) }
+                                            "GROUP_ACTIONS" -> m.actions.forEach { childrenItems.add(PostcardItem(currentId++, "ACTION", it.name, it.description)) }
+                                            "GROUP_REACTIONS" -> m.reactions.forEach { childrenItems.add(PostcardItem(currentId++, "REACTION", it.name, it.description)) }
+                                        }
+                                        if (childrenItems.isNotEmpty()) {
+                                            mergeIntoGroup(type, childrenItems)
+                                        }
+                                    } else if (source == "postcard") {
+                                        // Reordering a group
+                                        val oldIndex = postcardItems.indexOfFirst { it.id == id }
+                                        if (oldIndex != -1) {
+                                            val item = postcardItems[oldIndex]
+                                            val newList = postcardItems.toMutableList()
+                                            newList.removeAt(oldIndex)
+                                            if (insertIndex > oldIndex) insertIndex--
+                                            if (insertIndex > newList.size) insertIndex = newList.size
+                                            if (insertIndex < 0) insertIndex = 0
+                                            newList.add(insertIndex, item)
+                                            postcardItems = newList
+                                        }
+                                    }
+                                    return@onDrop
+                                }
+
+                                // Handle Individual Item Drops (from list) -> Enforce into Group
+                                if (source == "list" && (type == "ACTION" || type == "REACTION" || type == "TRAIT")) {
+                                    val groupType = "GROUP_${type}S" // e.g. GROUP_ACTIONS
+                                    val newItem = PostcardItem(id, type, label, value)
+                                    mergeIntoGroup(groupType, listOf(newItem))
+                                    return@onDrop
+                                }
+
+                                // Handle other items (PROPERTY, SEPARATOR, STATS_BLOCK, IMAGE)
+                                if (source == "list") {
+                                    if (type == "SEPARATOR" || postcardItems.none { it.type == type && it.label == label && it.value == value }) {
+                                        val newItem = PostcardItem(id, type, label, value)
+                                        val newList = postcardItems.toMutableList()
+                                        if (insertIndex > newList.size) insertIndex = newList.size
+                                        newList.add(insertIndex, newItem)
+                                        postcardItems = newList
+                                    }
                                 } else if (source == "postcard") {
-                                    // Reordering a group
                                     val oldIndex = postcardItems.indexOfFirst { it.id == id }
                                     if (oldIndex != -1) {
                                         val item = postcardItems[oldIndex]
                                         val newList = postcardItems.toMutableList()
                                         newList.removeAt(oldIndex)
-                                        
-                                        if (insertIndex > oldIndex) {
-                                            insertIndex--
-                                        }
-                                        
+                                        if (insertIndex > oldIndex) insertIndex--
                                         if (insertIndex > newList.size) insertIndex = newList.size
                                         if (insertIndex < 0) insertIndex = 0
-                                        
                                         newList.add(insertIndex, item)
                                         postcardItems = newList
                                     }
                                 }
-                                return@onDrop
+                            } catch (e: Exception) {
+                                console.error("Error parsing drag data", e)
                             }
-
-                            // Enforce grouping for individual items (ACTION, REACTION, TRAIT)
-                            // If we drop an individual item, we still enforce grouping relative to other individual items
-                            // But we ignore groups in this check for simplicity, or treat them as blocks.
-                            // Actually, if we have groups, we probably shouldn't be mixing individual items of the same type easily.
-                            // But let's keep the logic for individual items just in case.
-                            
-                            val groupTypes = listOf("ACTION", "REACTION", "TRAIT")
-                            
-                            for (groupType in groupTypes) {
-                                val existingIndices = postcardItems.mapIndexedNotNull { index, item ->
-                                    if (item.type == groupType && (source != "postcard" || item.id != id)) index else null
-                                }
+                        }
+                    }
+                }) {
+                    postcardItems.forEachIndexed { index, item ->
+                        if (dropIndicatorIndex == index) {
+                            if (dropIndicatorType == "HORIZONTAL") {
+                                Div({
+                                    style {
+                                        width(100.percent)
+                                        height(0.px)
+                                        property("border-top", "2px dotted #58180d")
+                                        margin(5.px, 0.px)
+                                        property("clear", "both")
+                                    }
+                                })
+                            } else {
+                                Div({
+                                    style {
+                                        display(DisplayStyle.InlineBlock)
+                                        width(0.px)
+                                        height(20.px)
+                                        property("border-left", "2px dotted #58180d")
+                                        margin(0.px, 5.px)
+                                        property("vertical-align", "middle")
+                                    }
+                                })
+                            }
+                        }
+                        Div({
+                            draggable(Draggable.True)
+                            attr("data-is-item", "true")
+                            style {
+                                marginBottom((2 * paddingScale).px)
+                                padding(2.px)
+                                border(1.px, LineStyle.Dashed, Color.transparent)
+                                cursor("move")
+                                backgroundColor(Color.transparent)
+                                property("user-select", "none")
+                                fontFamily("Book Antiqua", "Palatino Linotype", "Palatino", "serif")
+                                color(Color("#58180d"))
+                                position(Position.Relative)
                                 
-                                if (existingIndices.isNotEmpty()) {
-                                    val minIndex = existingIndices.minOrNull()!!
-                                    val maxIndex = existingIndices.maxOrNull()!!
+                                // Default to InlineBlock to allow side-by-side
+                                display(DisplayStyle.InlineBlock)
+                                property("vertical-align", "top")
+                                
+                                if (item.width != null) {
+                                    width(item.width.px)
+                                }
+
+                                if (item.type == "SEPARATOR") {
+                                    property("vertical-align", "middle")
+                                    if (item.width != null) {
+                                        width(item.width.px)
+                                        marginRight(10.px)
+                                    } else {
+                                        width(100.percent)
+                                        marginRight(0.px)
+                                    }
+                                } else if (item.type == "IMAGE") {
+                                    val imgData = JSON.parse<dynamic>(item.value)
+                                    val align = imgData.align as String
                                     
-                                    if (type != groupType) {
-                                        if (insertIndex > minIndex && insertIndex <= maxIndex) {
-                                            val distToMin = insertIndex - minIndex
-                                            val distToMax = (maxIndex + 1) - insertIndex
-                                            if (distToMin < distToMax) insertIndex = minIndex else insertIndex = maxIndex + 1
+                                    if (item.width == null) {
+                                        when (align) {
+                                            "left" -> {
+                                                property("float", "left")
+                                                marginRight(10.px)
+                                                property("width", "auto")
+                                            }
+                                            "right" -> {
+                                                property("float", "right")
+                                                marginLeft(10.px)
+                                                property("width", "auto")
+                                            }
+                                            else -> {
+                                                display(DisplayStyle.Block)
+                                                property("width", "100%")
+                                                textAlign("center")
+                                                property("clear", "both")
+                                            }
                                         }
                                     } else {
-                                        if (insertIndex < minIndex) insertIndex = minIndex
-                                        else if (insertIndex > maxIndex + 1) insertIndex = maxIndex + 1
+                                        // If width is manually set, respect alignment floats but use manual width
+                                        when (align) {
+                                            "left" -> {
+                                                property("float", "left")
+                                                marginRight(10.px)
+                                            }
+                                            "right" -> {
+                                                property("float", "right")
+                                                marginLeft(10.px)
+                                            }
+                                            else -> {
+                                                display(DisplayStyle.Block)
+                                                textAlign("center")
+                                                property("clear", "both")
+                                                property("margin", "0 auto")
+                                            }
+                                        }
                                     }
+                                } else {
+                                    if (item.width == null) {
+                                        property("width", "fit-content")
+                                    }
+                                    marginRight(10.px) // Add spacing between items
                                 }
                             }
-
-                            if (source == "list") {
-                                if (type == "SEPARATOR" || postcardItems.none { it.type == type && it.label == label && it.value == value }) {
-                                    val newItem = PostcardItem(
-                                        id = id,
-                                        type = type,
-                                        label = label,
-                                        value = value
-                                    )
-                                    val newList = postcardItems.toMutableList()
-                                    if (insertIndex > newList.size) insertIndex = newList.size
-                                    newList.add(insertIndex, newItem)
-                                    postcardItems = newList
-                                }
-                            } else if (source == "postcard") {
-                                val oldIndex = postcardItems.indexOfFirst { it.id == id }
-                                if (oldIndex != -1) {
-                                    val item = postcardItems[oldIndex]
-                                    val newList = postcardItems.toMutableList()
-                                    newList.removeAt(oldIndex)
-                                    if (insertIndex > oldIndex) insertIndex--
-                                    if (insertIndex > newList.size) insertIndex = newList.size
-                                    if (insertIndex < 0) insertIndex = 0
-                                    newList.add(insertIndex, item)
-                                    postcardItems = newList
-                                }
+                            onDragStart { event ->
+                                val dragData = js("{}")
+                                dragData.source = "postcard"
+                                dragData.id = item.id
+                                dragData.type = item.type
+                                dragData.label = item.label
+                                dragData.value = item.value
+                                event.dataTransfer?.setData("text/plain", JSON.stringify(dragData))
+                                event.dataTransfer?.effectAllowed = "move"
                             }
-                        } catch (e: Exception) {
-                            console.error("Error parsing drag data", e)
-                        }
-                    }
-                }
-            }) {
-                // We no longer need global flags for headers if we use groups, 
-                // but for individual items we still do.
-                var actionsHeaderRendered = false
-                var reactionsHeaderRendered = false
-
-                postcardItems.forEach { item ->
-                    // Render Headers for individual items (legacy support / mixed mode)
-                    if (item.type == "ACTION" && !actionsHeaderRendered) {
-                        H3({ 
-                            classes(MonsterSheetStyle.sectionHeader) 
-                            style { 
-                                width(100.percent)
-                                fontSize((18 * fontSizeScale).px)
-                                marginBottom((5 * marginScale).px)
-                                marginTop((15 * marginScale).px)
-                            }
-                        }) { Text("Actions") }
-                        actionsHeaderRendered = true
-                    }
-                    if (item.type == "REACTION" && !reactionsHeaderRendered) {
-                        H3({ 
-                            classes(MonsterSheetStyle.sectionHeader)
-                            style { 
-                                width(100.percent)
-                                fontSize((18 * fontSizeScale).px)
-                                marginBottom((5 * marginScale).px)
-                                marginTop((15 * marginScale).px)
-                            }
-                        }) { Text("Reactions") }
-                        reactionsHeaderRendered = true
-                    }
-
-                    Div({
-                        draggable(Draggable.True)
-                        attr("data-is-item", "true")
-                        style {
-                            width(100.percent)
-                            marginBottom((2 * paddingScale).px)
-                            padding(2.px)
-                            border(1.px, LineStyle.Dashed, Color.transparent)
-                            cursor("move")
-                            backgroundColor(Color.transparent)
-                            property("user-select", "none")
-                            fontFamily("Book Antiqua", "Palatino Linotype", "Palatino", "serif")
-                            color(Color("#58180d"))
-                            
-                            display(DisplayStyle.Flex)
-                            justifyContent(JustifyContent.SpaceBetween)
-                            alignItems(AlignItems.Center)
-                            
-                            // If it's a group, we might want column layout for content
+                            // Group Drop Zone
                             if (item.type.startsWith("GROUP_")) {
-                                flexDirection(FlexDirection.Column)
-                                alignItems(AlignItems.Start)
-                            }
-                        }
-                        onDragStart { event ->
-                            val dragData = js("{}")
-                            dragData.source = "postcard"
-                            dragData.id = item.id
-                            dragData.type = item.type
-                            dragData.label = item.label
-                            dragData.value = item.value
-                            event.dataTransfer?.setData("text/plain", JSON.stringify(dragData))
-                            event.dataTransfer?.effectAllowed = "move"
-                        }
-                        onMouseEnter { 
-                            (it.target as HTMLElement).style.border = "1px dashed #58180d"
-                            (it.target as HTMLElement).style.backgroundColor = "rgba(255, 255, 255, 0.5)"
-                        }
-                        onMouseLeave { 
-                            (it.target as HTMLElement).style.border = "1px dashed transparent"
-                            (it.target as HTMLElement).style.backgroundColor = "transparent"
-                        }
-                    }) {
-                        // Content Container
-                        Div({ style { flex(1); width(100.percent) } }) {
-                            if (item.type.startsWith("GROUP_")) {
-                                // Render Group Header
-                                val headerText = when(item.type) {
-                                    "GROUP_ACTIONS" -> "Actions"
-                                    "GROUP_REACTIONS" -> "Reactions"
-                                    else -> "" // Traits don't have header
-                                }
-                                
-                                if (headerText.isNotEmpty()) {
-                                    H3({ 
-                                        classes(MonsterSheetStyle.sectionHeader) 
-                                        style { 
-                                            width(100.percent)
-                                            fontSize((18 * fontSizeScale).px)
-                                            marginBottom((5 * marginScale).px)
-                                            marginTop((15 * marginScale).px)
-                                        }
-                                    }) { Text(headerText) }
-                                }
-                                
-                                // Render Children
-                                item.children.forEach { child ->
-                                    Div({ 
-                                        style { 
-                                            display(DisplayStyle.Flex)
-                                            justifyContent(JustifyContent.SpaceBetween)
-                                            alignItems(AlignItems.Start)
-                                            width(100.percent)
-                                        } 
-                                    }) {
-                                        Div({ style { flex(1) } }) {
-                                            Div({ 
-                                                classes(MonsterSheetStyle.traitBlock)
-                                                style { 
-                                                    fontSize((14 * fontSizeScale).px)
-                                                    marginBottom((5 * marginScale).px)
-                                                    lineHeight((1.0 * marginScale).em)
-                                                }
-                                            }) {
-                                                Span({ classes(MonsterSheetStyle.traitName) }) { Text("${child.label}.") }
-                                                Text(child.value)
+                                onDragOver { event -> event.preventDefault() }
+                                onDrop { event ->
+                                    event.preventDefault()
+                                    event.stopPropagation() // Handle drop within group
+                                    val data = event.dataTransfer?.getData("text/plain")
+                                    if (data != null) {
+                                        try {
+                                            val json = JSON.parse<dynamic>(data)
+                                            val source = json.source as String
+                                            val type = json.type as String
+                                            val label = json.label as String
+                                            val value = json.value as String
+                                            val id = if (source == "child") json.id as Double else Date.now()
+                                            
+                                            // Check if type matches group type
+                                            val expectedType = when(item.type) {
+                                                "GROUP_ACTIONS" -> "ACTION"
+                                                "GROUP_REACTIONS" -> "REACTION"
+                                                "GROUP_TRAITS" -> "TRAIT"
+                                                else -> ""
                                             }
-                                        }
-                                        
-                                        // Delete button for child
-                                        Span({
-                                            style {
-                                                marginLeft(5.px)
-                                                color(Color.red)
-                                                cursor("pointer")
-                                                fontWeight("bold")
-                                                fontSize(14.px)
-                                                opacity(0.3)
-                                                property("transition", "opacity 0.2s")
-                                                padding(0.px, 5.px)
-                                            }
-                                            onClick {
-                                                // Remove child from group
-                                                val newChildren = item.children.filter { it.id != child.id }
-                                                val newItem = item.copy(children = newChildren)
-                                                val index = postcardItems.indexOfFirst { it.id == item.id }
-                                                if (index != -1) {
-                                                    val newList = postcardItems.toMutableList()
-                                                    if (newChildren.isEmpty()) {
-                                                        newList.removeAt(index) // Remove empty group
-                                                    } else {
-                                                        newList[index] = newItem
+                                            
+                                            if (type == expectedType) {
+                                                if (source == "list") {
+                                                    if (item.children.none { it.label == label && it.value == value }) {
+                                                        val newItem = PostcardItem(id, type, label, value)
+                                                        val newChildren = item.children + newItem
+                                                        val newItemWithChildren = item.copy(children = newChildren)
+                                                        val index = postcardItems.indexOfFirst { it.id == item.id }
+                                                        if (index != -1) {
+                                                            val newList = postcardItems.toMutableList()
+                                                            newList[index] = newItemWithChildren
+                                                            postcardItems = newList
+                                                        }
                                                     }
-                                                    postcardItems = newList
+                                                } else if (source == "child") {
+                                                    val oldChildIndex = item.children.indexOfFirst { it.id == id }
+                                                    if (oldChildIndex != -1) {
+                                                        val child = item.children[oldChildIndex]
+                                                        val newChildren = item.children.toMutableList()
+                                                        newChildren.removeAt(oldChildIndex)
+                                                        newChildren.add(child)
+                                                        val newItemWithChildren = item.copy(children = newChildren)
+                                                        val index = postcardItems.indexOfFirst { it.id == item.id }
+                                                        if (index != -1) {
+                                                            val newList = postcardItems.toMutableList()
+                                                            newList[index] = newItemWithChildren
+                                                            postcardItems = newList
+                                                        }
+                                                    }
                                                 }
                                             }
-                                            onMouseEnter { (it.target as HTMLElement).style.opacity = "1" }
-                                            onMouseLeave { (it.target as HTMLElement).style.opacity = "0.3" }
-                                        }) { Text("×") }
+                                        } catch (e: Exception) { console.error(e) }
                                     }
                                 }
-                            } else {
-                                // Render Individual Item
-                                when (item.type) {
-                                    "SEPARATOR" -> {
-                                        Div({
-                                            classes(MonsterSheetStyle.taperedRule)
-                                            style {
-                                                marginTop((2 * paddingScale).px)
-                                                marginBottom((2 * paddingScale).px)
-                                            }
-                                        }) {}
+                            }
+                            onMouseEnter { 
+                                (it.target as HTMLElement).style.border = "1px dashed #58180d"
+                                (it.currentTarget as HTMLElement).querySelector(".delete-btn")?.unsafeCast<HTMLElement>()?.style?.opacity = "1"
+                                (it.currentTarget as HTMLElement).querySelector(".resize-handle")?.unsafeCast<HTMLElement>()?.style?.opacity = "0.5"
+                            }
+                            onMouseLeave { 
+                                (it.target as HTMLElement).style.border = "1px dashed transparent"
+                                (it.currentTarget as HTMLElement).querySelector(".delete-btn")?.unsafeCast<HTMLElement>()?.style?.opacity = "0"
+                                (it.currentTarget as HTMLElement).querySelector(".resize-handle")?.unsafeCast<HTMLElement>()?.style?.opacity = "0"
+                            }
+                        }) {
+                            // Content Container
+                            Div({ style { width(100.percent) } }) {
+                                if (item.type.startsWith("GROUP_")) {
+                                    // Render Group Header
+                                    val headerText = when(item.type) {
+                                        "GROUP_ACTIONS" -> "Actions"
+                                        "GROUP_REACTIONS" -> "Reactions"
+                                        else -> "" // Traits don't have header
                                     }
-                                    "STATS_BLOCK" -> {
-                                        val stats = JSON.parse<dynamic>(item.value)
-                                        val statNames = listOf("STR", "DEX", "CON", "INT", "WIS", "CHA")
-                                        
-                                        Div({
-                                            classes(MonsterSheetStyle.abilityScoreContainer)
-                                            style {
-                                                padding(0.px)
+                                    if (headerText.isNotEmpty()) {
+                                        H3({ 
+                                            classes(MonsterSheetStyle.sectionHeader) 
+                                            style { 
+                                                width(100.percent)
+                                                fontSize((18 * fontSizeScale).px)
                                                 marginBottom((5 * marginScale).px)
+                                                marginTop((5 * marginScale).px) // Reduced top margin
+                                            }
+                                        }) { Text(headerText) }
+                                    }
+                                    
+                                    // Render Children
+                                    item.children.forEachIndexed { index, child ->
+                                        Div({ 
+                                            draggable(Draggable.True)
+                                            style { 
+                                                display(DisplayStyle.Flex)
+                                                justifyContent(JustifyContent.SpaceBetween)
+                                                alignItems(AlignItems.Start)
+                                                width(100.percent)
+                                                position(Position.Relative)
+                                                cursor("move")
+                                            }
+                                            onDragStart { event ->
+                                                event.stopPropagation()
+                                                val dragData = js("{}")
+                                                dragData.source = "child"
+                                                dragData.id = child.id
+                                                dragData.type = child.type
+                                                dragData.label = child.label
+                                                dragData.value = child.value
+                                                event.dataTransfer?.setData("text/plain", JSON.stringify(dragData))
+                                                event.dataTransfer?.effectAllowed = "move"
+                                            }
+                                            onDragOver { event -> event.preventDefault() }
+                                            onDrop { event ->
+                                                event.preventDefault()
+                                                event.stopPropagation()
+                                                val data = event.dataTransfer?.getData("text/plain")
+                                                if (data != null) {
+                                                    try {
+                                                        val json = JSON.parse<dynamic>(data)
+                                                        val source = json.source as String
+                                                        val id = if (source == "child") json.id as Double else Date.now()
+                                                        
+                                                        if (source == "child") {
+                                                            val oldChildIndex = item.children.indexOfFirst { it.id == id }
+                                                            if (oldChildIndex != -1) {
+                                                                val childItem = item.children[oldChildIndex]
+                                                                val newChildren = item.children.toMutableList()
+                                                                newChildren.removeAt(oldChildIndex)
+                                                                var insertIdx = index
+                                                                if (oldChildIndex < index) insertIdx--
+                                                                if (insertIdx < 0) insertIdx = 0
+                                                                if (insertIdx > newChildren.size) insertIdx = newChildren.size
+                                                                newChildren.add(insertIdx, childItem)
+                                                                val newItemWithChildren = item.copy(children = newChildren)
+                                                                val groupIndex = postcardItems.indexOfFirst { it.id == item.id }
+                                                                if (groupIndex != -1) {
+                                                                    val newList = postcardItems.toMutableList()
+                                                                    newList[groupIndex] = newItemWithChildren
+                                                                    postcardItems = newList
+                                                                }
+                                                            }
+                                                        }
+                                                    } catch (e: Exception) { console.error(e) }
+                                                }
+                                            }
+                                            onMouseEnter { 
+                                                (it.currentTarget as HTMLElement).querySelector(".child-delete-btn")?.unsafeCast<HTMLElement>()?.style?.opacity = "1"
+                                            }
+                                            onMouseLeave { 
+                                                (it.currentTarget as HTMLElement).querySelector(".child-delete-btn")?.unsafeCast<HTMLElement>()?.style?.opacity = "0"
                                             }
                                         }) {
-                                            statNames.forEach { statName ->
-                                                val score = stats[statName] as Int
-                                                val modifier = floor((score - 10) / 2.0).toInt()
-                                                val sign = if (modifier >= 0) "+" else ""
-                                                
-                                                Div({
-                                                    classes(MonsterSheetStyle.abilityScore)
-                                                    style { property("width", "auto") }
+                                            Div({ style { flex(1) } }) {
+                                                Div({ 
+                                                    classes(MonsterSheetStyle.traitBlock)
+                                                    style { 
+                                                        fontSize((14 * fontSizeScale).px)
+                                                        marginBottom((5 * marginScale).px)
+                                                        lineHeight((1.0 * marginScale).em)
+                                                    }
                                                 }) {
-                                                    Span({ 
-                                                        classes(MonsterSheetStyle.abilityScoreLabel)
-                                                        style { fontSize((12 * fontSizeScale).px) }
-                                                    }) { Text(statName) }
-                                                    Span({ 
-                                                        style { fontSize((14 * fontSizeScale).px) }
-                                                    }) { Text("$score ($sign$modifier)") }
+                                                    Span({ classes(MonsterSheetStyle.traitName) }) { Text("${child.label}.") }
+                                                    Text(child.value)
+                                                }
+                                            }
+                                            Span({
+                                                classes("child-delete-btn")
+                                                attr("data-html2canvas-ignore", "true")
+                                                style {
+                                                    position(Position.Absolute)
+                                                    right((-8).px)
+                                                    top((-8).px)
+                                                    width(16.px)
+                                                    height(16.px)
+                                                    backgroundColor(Color("#58180d"))
+                                                    color(Color.white)
+                                                    borderRadius(50.percent)
+                                                    cursor("pointer")
+                                                    fontWeight("bold")
+                                                    fontSize(12.px)
+                                                    display(DisplayStyle.Flex)
+                                                    justifyContent(JustifyContent.Center)
+                                                    alignItems(AlignItems.Center)
+                                                    opacity(0) // Hidden by default
+                                                    property("transition", "opacity 0.2s")
+                                                    property("z-index", "10")
+                                                }
+                                                onClick {
+                                                    val newChildren = item.children.filter { it.id != child.id }
+                                                    val newItem = item.copy(children = newChildren)
+                                                    val groupIndex = postcardItems.indexOfFirst { it.id == item.id }
+                                                    if (groupIndex != -1) {
+                                                        val newList = postcardItems.toMutableList()
+                                                        if (newChildren.isEmpty()) {
+                                                            newList.removeAt(groupIndex)
+                                                        } else {
+                                                            newList[groupIndex] = newItem
+                                                        }
+                                                        postcardItems = newList
+                                                    }
+                                                }
+                                            }) { Text("-") }
+                                        }
+                                    }
+                                } else {
+                                    // Render Individual Item (PROPERTY, SEPARATOR, STATS_BLOCK, IMAGE)
+                                    when (item.type) {
+                                        "SEPARATOR" -> {
+                                            Div({
+                                                style {
+                                                    width(100.percent)
+                                                    height(2.px)
+                                                    backgroundColor(Color("#58180d"))
+                                                    marginTop((5 * marginScale).px)
+                                                    marginBottom((5 * marginScale).px)
+                                                }
+                                            }) {}
+                                        }
+                                        "STATS_BLOCK" -> {
+                                            val stats = JSON.parse<dynamic>(item.value)
+                                            val statNames = listOf("STR", "DEX", "CON", "INT", "WIS", "CHA")
+                                            Div({
+                                                classes(MonsterSheetStyle.abilityScoreContainer)
+                                                style {
+                                                    padding(0.px)
+                                                    marginBottom((5 * marginScale).px)
+                                                }
+                                            }) {
+                                                statNames.forEach { statName ->
+                                                    val score = stats[statName] as Int
+                                                    val modifier = floor((score - 10) / 2.0).toInt()
+                                                    val sign = if (modifier >= 0) "+" else ""
+                                                    Div({
+                                                        classes(MonsterSheetStyle.abilityScore)
+                                                        style { property("width", "auto") }
+                                                    }) {
+                                                        Span({ 
+                                                            classes(MonsterSheetStyle.abilityScoreLabel)
+                                                            style { fontSize((12 * fontSizeScale).px) }
+                                                        }) { Text(statName) }
+                                                        Span({ 
+                                                            style { fontSize((14 * fontSizeScale).px) }
+                                                        }) { Text("$score ($sign$modifier)") }
+                                                    }
                                                 }
                                             }
                                         }
-                                    }
-                                    "PROPERTY" -> {
-                                        if (item.label == "Name") {
-                                            H1({ 
-                                                classes(MonsterSheetStyle.monsterName)
-                                                style { 
-                                                    fontSize((24 * fontSizeScale).px) 
-                                                    margin(0.px)
-                                                    marginBottom((5 * marginScale).px)
-                                                    lineHeight((1.0 * marginScale).em)
-                                                } 
-                                            }) { Text(item.value) }
-                                        } else {
-                                            Div({ 
-                                                classes(MonsterSheetStyle.propertyLine)
-                                                style { 
-                                                    alignItems(AlignItems.Baseline)
-                                                    margin(0.px)
-                                                    marginBottom((2 * marginScale).px)
-                                                    fontSize((14 * fontSizeScale).px)
-                                                    lineHeight((1.0 * marginScale).em)
-                                                } 
+                                        "IMAGE" -> {
+                                            val imgData = JSON.parse<dynamic>(item.value)
+                                            val url = imgData.url as String
+                                            val scale = imgData.scale as Double
+                                            val align = imgData.align as String
+                                            
+                                            Div({
+                                                style {
+                                                    display(DisplayStyle.InlineBlock)
+                                                    position(Position.Relative)
+                                                }
+                                                onMouseEnter { 
+                                                    (it.currentTarget as HTMLElement).querySelector(".image-controls")?.unsafeCast<HTMLElement>()?.style?.opacity = "1"
+                                                }
+                                                onMouseLeave { 
+                                                    (it.currentTarget as HTMLElement).querySelector(".image-controls")?.unsafeCast<HTMLElement>()?.style?.opacity = "0"
+                                                }
                                             }) {
-                                                Span({ classes(MonsterSheetStyle.propertyLabel) }) { Text("${item.label} ") }
-                                                Span({ 
+                                                Img(src = url, alt = "Monster Image") {
+                                                    draggable(Draggable.False)
+                                                    style {
+                                                        if (item.width != null) {
+                                                            width(100.percent)
+                                                        } else {
+                                                            width((200 * scale).px)
+                                                        }
+                                                        maxWidth(100.percent)
+                                                        property("display", "block")
+                                                    }
+                                                }
+                                                
+                                                // Controls
+                                                Div({
+                                                    classes("image-controls")
+                                                    attr("data-html2canvas-ignore", "true")
+                                                    style {
+                                                        position(Position.Absolute)
+                                                        bottom(5.px)
+                                                        left(5.percent)
+                                                        backgroundColor(Color("rgba(255, 255, 255, 0.9)"))
+                                                        padding(4.px)
+                                                        borderRadius(4.px)
+                                                        display(DisplayStyle.Flex)
+                                                        gap(4.px)
+                                                        opacity(0)
+                                                        property("transition", "opacity 0.2s")
+                                                        border(1.px, LineStyle.Solid, Color("#ccc"))
+                                                        property("z-index", "20")
+                                                    }
+                                                }) {
+                                                    fun update(newScale: Double, newAlign: String) {
+                                                        val newData = js("{}")
+                                                        newData.url = url
+                                                        newData.scale = newScale
+                                                        newData.align = newAlign
+                                                        val newItem = item.copy(value = JSON.stringify(newData))
+                                                        val idx = postcardItems.indexOfFirst { it.id == item.id }
+                                                        if (idx != -1) {
+                                                            val list = postcardItems.toMutableList()
+                                                            list[idx] = newItem
+                                                            postcardItems = list
+                                                        }
+                                                    }
+
+                                                    Button({ 
+                                                        style { padding(2.px, 5.px); cursor("pointer") }
+                                                        onClick { update((scale - 0.1).coerceAtLeast(0.1), align) } 
+                                                    }) { Text("-") }
+                                                    
+                                                    Button({ 
+                                                        style { padding(2.px, 5.px); cursor("pointer") }
+                                                        onClick { update((scale + 0.1).coerceAtMost(3.0), align) } 
+                                                    }) { Text("+") }
+                                                    
+                                                    Span({ style { width(5.px) } }) {}
+
+                                                    Button({ 
+                                                        style { padding(2.px, 5.px); cursor("pointer"); fontWeight(if(align=="left") "bold" else "normal") }
+                                                        onClick { update(scale, "left") } 
+                                                    }) { Text("L") }
+                                                    
+                                                    Button({ 
+                                                        style { padding(2.px, 5.px); cursor("pointer"); fontWeight(if(align=="center") "bold" else "normal") }
+                                                        onClick { update(scale, "center") } 
+                                                    }) { Text("C") }
+                                                    
+                                                    Button({ 
+                                                        style { padding(2.px, 5.px); cursor("pointer"); fontWeight(if(align=="right") "bold" else "normal") }
+                                                        onClick { update(scale, "right") } 
+                                                    }) { Text("R") }
+                                                }
+                                            }
+                                        }
+                                        "PROPERTY" -> {
+                                            if (item.label == "Name") {
+                                                H1({ 
+                                                    classes(MonsterSheetStyle.monsterName)
                                                     style { 
-                                                        color(Color("#58180d")) 
-                                                        fontFamily("Book Antiqua", "Palatino Linotype", "Palatino", "serif")
+                                                        fontSize((24 * fontSizeScale).px) 
+                                                        margin(0.px)
+                                                        marginBottom((5 * marginScale).px)
+                                                        lineHeight((1.0 * marginScale).em)
                                                     } 
                                                 }) { Text(item.value) }
+                                            } else {
+                                                Div({ 
+                                                    classes(MonsterSheetStyle.propertyLine)
+                                                    style { 
+                                                        alignItems(AlignItems.Baseline)
+                                                        margin(0.px)
+                                                        marginBottom((2 * marginScale).px)
+                                                        fontSize((14 * fontSizeScale).px)
+                                                        lineHeight((1.0 * marginScale).em)
+                                                    } 
+                                                }) {
+                                                    Span({ classes(MonsterSheetStyle.propertyLabel) }) { Text("${item.label} ") }
+                                                    Span({ 
+                                                        style { 
+                                                            color(Color("#58180d")) 
+                                                            fontFamily("Book Antiqua", "Palatino Linotype", "Palatino", "serif")
+                                                        } 
+                                                    }) { Text(item.value) }
+                                                }
                                             }
-                                        }
-                                    }
-                                    "ACTION", "REACTION", "TRAIT" -> {
-                                        Div({ 
-                                            classes(MonsterSheetStyle.traitBlock)
-                                            style { 
-                                                fontSize((14 * fontSizeScale).px)
-                                                marginBottom((5 * marginScale).px)
-                                                lineHeight((1.0 * marginScale).em)
-                                            }
-                                        }) {
-                                            Span({ classes(MonsterSheetStyle.traitName) }) { Text("${item.label}.") }
-                                            Text(item.value)
                                         }
                                     }
                                 }
                             }
-                        }
 
-                        // Delete button for parent item
-                        if (!item.type.startsWith("GROUP_")) {
-                            Span({
+                            // Resize Handle
+                            Div({
+                                classes("resize-handle")
+                                attr("data-html2canvas-ignore", "true")
                                 style {
-                                    marginLeft(5.px)
-                                    color(Color.red)
-                                    cursor("pointer")
-                                    fontWeight("bold")
-                                    fontSize(14.px)
-                                    opacity(0.3)
-                                    property("transition", "opacity 0.2s")
-                                    padding(0.px, 5.px)
+                                    width(10.px)
+                                    height(100.percent)
+                                    position(Position.Absolute)
+                                    right((-5).px)
+                                    top(0.px)
+                                    cursor("col-resize")
+                                    property("z-index", "20")
+                                    opacity(0) // Hidden by default
                                 }
-                                onClick {
-                                    postcardItems = postcardItems.filter { it.id != item.id }
+                                onMouseEnter { 
+                                    (it.target as HTMLElement).style.opacity = "1"
+                                    (it.target as HTMLElement).style.backgroundColor = "#ccc"
                                 }
-                                onMouseEnter { (it.target as HTMLElement).style.opacity = "1" }
-                                onMouseLeave { (it.target as HTMLElement).style.opacity = "0.3" }
-                            }) { Text("×") }
+                                onMouseLeave { 
+                                    (it.target as HTMLElement).style.opacity = "0.5"
+                                    (it.target as HTMLElement).style.backgroundColor = "transparent"
+                                }
+                                onMouseDown { event ->
+                                    event.stopPropagation()
+                                    event.preventDefault()
+                                    val startX = event.clientX
+                                    val parent = (event.target as HTMLElement).parentElement as HTMLElement
+                                    val startWidth = item.width ?: parent.getBoundingClientRect().width
+                                    
+                                    var onMouseMove: ((org.w3c.dom.events.Event) -> Unit)? = null
+                                    var onMouseUp: ((org.w3c.dom.events.Event) -> Unit)? = null
+                                    
+                                    onMouseMove = { e ->
+                                        val mouseEvent = e as org.w3c.dom.events.MouseEvent
+                                        val newWidth = (startWidth + (mouseEvent.clientX - startX)).coerceAtLeast(20.0)
+                                        
+                                        val idx = postcardItems.indexOfFirst { it.id == item.id }
+                                        if (idx != -1) {
+                                            val newList = postcardItems.toMutableList()
+                                            newList[idx] = newList[idx].copy(width = newWidth)
+                                            postcardItems = newList
+                                        }
+                                    }
+                                    
+                                    onMouseUp = { _ ->
+                                        window.removeEventListener("mousemove", onMouseMove)
+                                        window.removeEventListener("mouseup", onMouseUp)
+                                    }
+                                    
+                                    window.addEventListener("mousemove", onMouseMove)
+                                    window.addEventListener("mouseup", onMouseUp)
+                                }
+                            })
+
+                            // Delete button for parent item
+                            if (!item.type.startsWith("GROUP_") || item.children.size > 1) {
+                                Span({
+                                    classes("delete-btn")
+                                    attr("data-html2canvas-ignore", "true")
+                                    style {
+                                        position(Position.Absolute)
+                                        if (item.type.startsWith("GROUP_")) {
+                                            right(50.percent)
+                                            property("transform", "translateX(50%)")
+                                            top((-8).px)
+                                        } else {
+                                            right((-8).px)
+                                            top((-8).px)
+                                        }
+                                        width(16.px)
+                                        height(16.px)
+                                        backgroundColor(Color("#58180d"))
+                                        color(Color.white)
+                                        borderRadius(50.percent)
+                                        cursor("pointer")
+                                        fontWeight("bold")
+                                        fontSize(12.px)
+                                        display(DisplayStyle.Flex)
+                                        justifyContent(JustifyContent.Center)
+                                        alignItems(AlignItems.Center)
+                                        opacity(0) // Hidden by default
+                                        property("transition", "opacity 0.2s")
+                                        property("z-index", "10")
+                                    }
+                                    onClick {
+                                        postcardItems = postcardItems.filter { it.id != item.id }
+                                    }
+                                }) { Text("-") }
+                            }
+                        }
+                    }
+                    if (dropIndicatorIndex == postcardItems.size) {
+                        if (dropIndicatorType == "HORIZONTAL") {
+                            Div({
+                                style {
+                                    width(100.percent)
+                                    height(0.px)
+                                    property("border-top", "2px dotted #58180d")
+                                    margin(5.px, 0.px)
+                                    property("clear", "both")
+                                }
+                            })
                         } else {
-                            // Delete button for group (removes whole group)
-                             Span({
+                            Div({
                                 style {
-                                    marginLeft(5.px)
-                                    color(Color.red)
-                                    cursor("pointer")
-                                    fontWeight("bold")
-                                    fontSize(14.px)
-                                    opacity(0.3)
-                                    property("transition", "opacity 0.2s")
-                                    padding(0.px, 5.px)
-                                    alignSelf(AlignSelf.FlexStart) // Align to top for groups
+                                    display(DisplayStyle.InlineBlock)
+                                    width(0.px)
+                                    height(20.px)
+                                    property("border-left", "2px dotted #58180d")
+                                    margin(0.px, 5.px)
+                                    property("vertical-align", "middle")
                                 }
-                                onClick {
-                                    postcardItems = postcardItems.filter { it.id != item.id }
-                                }
-                                onMouseEnter { (it.target as HTMLElement).style.opacity = "1" }
-                                onMouseLeave { (it.target as HTMLElement).style.opacity = "0.3" }
-                            }) { Text("×") }
+                            })
                         }
                     }
                 }
