@@ -1112,7 +1112,7 @@ fun ExportScreen(monsterId: Int, onBack: () -> Unit) {
                                 classes("resize-handle")
                                 attr("data-html2canvas-ignore", "true")
                                 style {
-                                    width(1.px) // Reduced width to be less intrusive
+                                    width(10.px)
                                     height(100.percent)
                                     position(Position.Absolute)
                                     right((-5).px)
@@ -1124,12 +1124,10 @@ fun ExportScreen(monsterId: Int, onBack: () -> Unit) {
                                 onMouseEnter {
                                     (it.target as HTMLElement).style.opacity = "1"
                                     (it.target as HTMLElement).style.backgroundColor = "#ccc"
-                                    (it.target as HTMLElement).style.width = "10px" // Expand on hover
                                 }
                                 onMouseLeave {
-                                    (it.target as HTMLElement).style.opacity = "0"
+                                    (it.target as HTMLElement).style.opacity = "0.5"
                                     (it.target as HTMLElement).style.backgroundColor = "transparent"
-                                    (it.target as HTMLElement).style.width = "1px"
                                 }
                                 onMouseDown { event ->
                                     event.stopPropagation()
