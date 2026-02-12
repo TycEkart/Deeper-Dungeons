@@ -13,7 +13,6 @@ import org.w3c.dom.HTMLElement
 import org.w3c.dom.HTMLAnchorElement
 import org.w3c.dom.HTMLCanvasElement
 import org.w3c.dom.Node
-import org.w3c.dom.DOMRect
 import kotlinx.browser.document
 import kotlinx.browser.window
 import org.jetbrains.compose.web.attributes.Draggable
@@ -25,16 +24,16 @@ import kotlin.math.floor
 fun ExportScreen(monsterId: Int, onBack: () -> Unit) {
     var monster by remember { mutableStateOf<MonsterDto?>(null) }
     val scope = rememberCoroutineScope()
-    
+
     data class PostcardItem(
-        val id: Double, 
-        val type: String, 
-        val label: String, 
+        val id: Double,
+        val type: String,
+        val label: String,
         val value: String,
         val children: List<PostcardItem> = emptyList(),
         val width: Double? = null
     )
-    
+
     data class DraggableOption(val type: String, val label: String, val value: String)
 
     var postcardItems by remember { mutableStateOf(listOf<PostcardItem>()) }
@@ -62,13 +61,14 @@ fun ExportScreen(monsterId: Int, onBack: () -> Unit) {
     }
 
     val m = monster!!
-    
+
     val draggableOptions = remember(m) {
         val options = mutableListOf<DraggableOption>()
-        
+
         // Special item: Line
         options.add(DraggableOption("SEPARATOR", "Line", ""))
-        
+        options.add(DraggableOption("PROPERTY", "Name", m.name))
+
         if (!m.imageUrl.isNullOrBlank()) {
             val imgData = js("{}")
             val url = m.imageUrl!!
@@ -83,11 +83,10 @@ fun ExportScreen(monsterId: Int, onBack: () -> Unit) {
             options.add(DraggableOption("IMAGE", "Monster Image", JSON.stringify(imgData)))
         }
 
-        options.add(DraggableOption("PROPERTY", "Name", m.name))
-        options.add(DraggableOption("PROPERTY", "HP", m.hitPoints))
         options.add(DraggableOption("PROPERTY", "AC", "${m.armorClass.value}"))
+        options.add(DraggableOption("PROPERTY", "HP", m.hitPoints))
         options.add(DraggableOption("PROPERTY", "Speed", m.speed))
-        
+
         // Stats Block
         val statsObj = js("{}")
         statsObj["STR"] = m.str.value
@@ -97,36 +96,36 @@ fun ExportScreen(monsterId: Int, onBack: () -> Unit) {
         statsObj["WIS"] = m.wis.value
         statsObj["CHA"] = m.cha.value
         options.add(DraggableOption("STATS_BLOCK", "Stats", JSON.stringify(statsObj)))
-        
+
         if (!m.savingThrows.isNullOrBlank()) {
             options.add(DraggableOption("PROPERTY", "Saving Throws", m.savingThrows!!))
         }
         if (!m.skills.isNullOrBlank()) {
             options.add(DraggableOption("PROPERTY", "Skills", m.skills!!))
         }
-        
+
         options.add(DraggableOption("PROPERTY", "Challenge", m.challenge))
         options.add(DraggableOption("PROPERTY", "Senses", m.senses))
         options.add(DraggableOption("PROPERTY", "Languages", m.languages))
-        
+
         if (m.traits.isNotEmpty()) {
             options.add(DraggableOption("GROUP_TRAITS", "All Traits", "Drag to add all traits"))
             m.traits.forEach {
                 options.add(DraggableOption("TRAIT", it.name, it.description))
             }
         }
-        
+
         if (m.actions.isNotEmpty()) {
             options.add(DraggableOption("GROUP_ACTIONS", "All Actions", "Drag to add all actions"))
-            m.actions.forEach { 
-                options.add(DraggableOption("ACTION", it.name, it.description)) 
+            m.actions.forEach {
+                options.add(DraggableOption("ACTION", it.name, it.description))
             }
         }
-        
+
         if (m.reactions.isNotEmpty()) {
             options.add(DraggableOption("GROUP_REACTIONS", "All Reactions", "Drag to add all reactions"))
-            m.reactions.forEach { 
-                options.add(DraggableOption("REACTION", it.name, it.description)) 
+            m.reactions.forEach {
+                options.add(DraggableOption("REACTION", it.name, it.description))
             }
         }
         options
@@ -139,7 +138,7 @@ fun ExportScreen(monsterId: Int, onBack: () -> Unit) {
             left(0.px)
             width(100.percent)
             height(100.percent)
-            
+
             display(DisplayStyle.Flex)
             flexDirection(FlexDirection.Column)
             padding(20.px)
@@ -165,68 +164,80 @@ fun ExportScreen(monsterId: Int, onBack: () -> Unit) {
         }) {
             Button(attrs = {
                 classes(MonsterSheetStyle.dndButton)
-                onClick { onBack() } 
+                onClick { onBack() }
             }) { Text("Back") }
-            
+
             Button(attrs = {
                 classes(MonsterSheetStyle.dndButton)
                 onClick {
                     val newItems = mutableListOf<PostcardItem>()
                     var currentId = Date.now()
-                    
+
                     draggableOptions.forEach { option ->
                         if (option.type != "SEPARATOR" && !option.type.startsWith("GROUP_")) {
-                            newItems.add(PostcardItem(id = currentId++, type = option.type, label = option.label, value = option.value))
+                            newItems.add(
+                                PostcardItem(
+                                    id = currentId++,
+                                    type = option.type,
+                                    label = option.label,
+                                    value = option.value
+                                )
+                            )
                         }
                     }
-                    
+
                     val groupedItems = mutableListOf<PostcardItem>()
-                    
+
                     // Add properties
-                    newItems.filter { it.type == "PROPERTY" || it.type == "STATS_BLOCK" || it.type == "IMAGE" }.forEach { groupedItems.add(it) }
-                    
+                    newItems.filter { it.type == "PROPERTY" || it.type == "STATS_BLOCK" || it.type == "IMAGE" }
+                        .forEach { groupedItems.add(it) }
+
                     // Add Traits Group
                     val traits = newItems.filter { it.type == "TRAIT" }
                     if (traits.isNotEmpty()) {
                         groupedItems.add(PostcardItem(currentId++, "GROUP_TRAITS", "Traits", "", traits))
                     }
-                    
+
                     // Add Actions Group
                     val actions = newItems.filter { it.type == "ACTION" }
                     if (actions.isNotEmpty()) {
                         groupedItems.add(PostcardItem(currentId++, "GROUP_ACTIONS", "Actions", "", actions))
                     }
-                    
+
                     // Add Reactions Group
                     val reactions = newItems.filter { it.type == "REACTION" }
                     if (reactions.isNotEmpty()) {
                         groupedItems.add(PostcardItem(currentId++, "GROUP_REACTIONS", "Reactions", "", reactions))
                     }
-                    
+
                     postcardItems = groupedItems
                 }
             }) { Text("Add All Items") }
 
             // Font Size
-            ControlGroup("Font", "${(fontSizeScale * 100).toInt()}%", 
+            ControlGroup(
+                "Font", "${(fontSizeScale * 100).toInt()}%",
                 { fontSizeScale = (fontSizeScale + 0.1).coerceAtMost(2.0) },
                 { fontSizeScale = (fontSizeScale - 0.1).coerceAtLeast(0.5) }
             )
-            
+
             // Padding
-            ControlGroup("Pad", "${(paddingScale * 100).toInt()}%", 
+            ControlGroup(
+                "Pad", "${(paddingScale * 100).toInt()}%",
                 { paddingScale = (paddingScale + 0.1).coerceAtMost(2.0) },
                 { paddingScale = (paddingScale - 0.1).coerceAtLeast(0.0) }
             )
 
             // Margin
-            ControlGroup("Marg", "${(marginScale * 100).toInt()}%", 
+            ControlGroup(
+                "Marg", "${(marginScale * 100).toInt()}%",
                 { marginScale = (marginScale + 0.1).coerceAtMost(2.0) },
                 { marginScale = (marginScale - 0.1).coerceAtLeast(0.0) }
             )
 
             // Zoom
-            ControlGroup("Zoom", "${(zoomScale * 100).toInt()}%", 
+            ControlGroup(
+                "Zoom", "${(zoomScale * 100).toInt()}%",
                 { zoomScale = (zoomScale + 0.1).coerceAtMost(3.0) },
                 { zoomScale = (zoomScale - 0.1).coerceAtLeast(0.5) }
             )
@@ -283,16 +294,16 @@ fun ExportScreen(monsterId: Int, onBack: () -> Unit) {
                     classes(MonsterSheetStyle.header)
                     style { textAlign("center") }
                 }) { Text("Drag items to postcard") }
-                
+
                 draggableOptions.forEach { option ->
                     val isGroup = option.type.startsWith("GROUP_")
-                    
+
                     // Check if item exists as top-level or inside a group
-                    val isAlreadyAdded = if (option.type == "SEPARATOR" || isGroup) false else postcardItems.any { 
+                    val isAlreadyAdded = if (option.type == "SEPARATOR" || isGroup) false else postcardItems.any {
                         (it.type == option.type && it.label == option.label && it.value == option.value) ||
-                        (it.children.any { child -> child.type == option.type && child.label == option.label && child.value == option.value })
+                                (it.children.any { child -> child.type == option.type && child.label == option.label && child.value == option.value })
                     }
-                    
+
                     Div({
                         if (!isAlreadyAdded) {
                             draggable(Draggable.True)
@@ -327,44 +338,47 @@ fun ExportScreen(monsterId: Int, onBack: () -> Unit) {
                             "SEPARATOR" -> {
                                 Span({ style { fontWeight("bold"); color(Color("#58180d")) } }) { Text("--- Line ---") }
                             }
+
                             "STATS_BLOCK" -> {
                                 Span({ style { fontWeight("bold"); color(Color("#58180d")) } }) { Text("Ability Scores") }
                                 Span({ style { fontSize(12.px) } }) { Text("STR | DEX | CON | INT | WIS | CHA") }
                             }
+
                             "IMAGE" -> {
                                 Span({ style { fontWeight("bold"); color(Color("#58180d")) } }) { Text("Monster Image") }
                             }
+
                             else -> {
                                 Div({ style { display(DisplayStyle.Flex); alignItems(AlignItems.Center); gap(5.px) } }) {
                                     if (isGroup) {
-                                        Span({ 
-                                            style { 
+                                        Span({
+                                            style {
                                                 fontSize(20.px)
                                                 color(Color("#58180d"))
                                                 lineHeight(1.em)
-                                            } 
+                                            }
                                         }) { Text("•") }
                                     }
-                                    
-                                    Span({ style { fontWeight("bold"); color(Color("#58180d")) } }) { 
-                                        val prefix = when(option.type) {
+
+                                    Span({ style { fontWeight("bold"); color(Color("#58180d")) } }) {
+                                        val prefix = when (option.type) {
                                             "ACTION" -> "[A] "
                                             "REACTION" -> "[R] "
                                             "TRAIT" -> "[T] "
                                             else -> ""
                                         }
-                                        Text(prefix + option.label) 
+                                        Text(prefix + option.label)
                                     }
                                 }
-                                Span({ 
-                                    style { 
+                                Span({
+                                    style {
                                         fontSize(14.px)
                                         whiteSpace("nowrap")
                                         overflow("hidden")
                                         property("text-overflow", "ellipsis")
                                         maxWidth(250.px)
                                         display(DisplayStyle.Block)
-                                    } 
+                                    }
                                 }) { Text(option.value) }
                             }
                         }
@@ -401,54 +415,15 @@ fun ExportScreen(monsterId: Int, onBack: () -> Unit) {
                         display(DisplayStyle.Block)
                         property("transform", "scale($zoomScale)")
                     }
-                    onDragOver { event -> 
+                    onDragOver { event ->
                         event.preventDefault()
                         val container = event.currentTarget as HTMLElement
-                        val children = container.children
-                        var insertIndex = postcardItems.size
-                        var itemIndex = 0
-                        var found = false
-                        var lastRect: DOMRect? = null
-                        
-                        for (i in 0 until children.length) {
-                            val child = children.item(i) as HTMLElement
-                            if (!child.getAttribute("data-is-item").toBoolean()) continue
-                            val rect = child.getBoundingClientRect()
-                            lastRect = rect
-                            
-                            val childMiddleX = rect.left + rect.width / 2
-                            
-                            if (event.clientY < rect.top) {
-                                insertIndex = itemIndex
-                                found = true
-                                dropIndicatorType = "HORIZONTAL"
-                                break
-                            }
-                            
-                            if (event.clientY < rect.bottom) {
-                                if (event.clientX < childMiddleX) {
-                                    insertIndex = itemIndex
-                                    found = true
-                                    dropIndicatorType = "VERTICAL"
-                                    break
-                                }
-                            }
-                            
-                            itemIndex++
-                        }
-                        if (!found) {
-                            insertIndex = postcardItems.size
-                            if (lastRect != null) {
-                                if (event.clientY > lastRect.bottom) {
-                                    dropIndicatorType = "HORIZONTAL"
-                                } else {
-                                    dropIndicatorType = "VERTICAL"
-                                }
-                            } else {
-                                dropIndicatorType = "HORIZONTAL"
-                            }
-                        }
-                        dropIndicatorIndex = insertIndex
+                        val (index, type) = findDropTarget(
+                            event.nativeEvent as org.w3c.dom.events.MouseEvent,
+                            container.children
+                        )
+                        dropIndicatorIndex = index
+                        dropIndicatorType = type
                     }
                     onDragLeave { event ->
                         val container = event.currentTarget as HTMLElement
@@ -468,43 +443,18 @@ fun ExportScreen(monsterId: Int, onBack: () -> Unit) {
                                 val type = json.type as String
                                 val label = json.label as String
                                 val value = json.value as String
-                                val id = if (source == "postcard" || source == "child") json.id as Double else Date.now()
-                                
+                                val id =
+                                    if (source == "postcard" || source == "child") json.id as Double else Date.now()
+
                                 if (source == "child") return@onDrop
 
                                 // Determine insertion index
                                 val container = event.currentTarget as HTMLElement
-                                val children = container.children
-                                var insertIndex = postcardItems.size
-                                var itemIndex = 0
-                                var found = false
-                                for (i in 0 until children.length) {
-                                    val child = children.item(i) as HTMLElement
-                                    if (!child.getAttribute("data-is-item").toBoolean()) continue
-                                    val rect = child.getBoundingClientRect()
-                                    
-                                    val childMiddleX = rect.left + rect.width / 2
-                                    
-                                    // Check if cursor is "before" this element
-                                    // 1. If cursor is significantly above the element (previous row) -> Insert here
-                                    if (event.clientY < rect.top) {
-                                        insertIndex = itemIndex
-                                        found = true
-                                        break
-                                    }
-                                    
-                                    // 2. If cursor is within the vertical span of the element -> Check horizontal
-                                    if (event.clientY < rect.bottom) {
-                                        if (event.clientX < childMiddleX) {
-                                            insertIndex = itemIndex
-                                            found = true
-                                            break
-                                        }
-                                    }
-                                    
-                                    itemIndex++
-                                }
-                                if (!found) insertIndex = postcardItems.size
+                                val (foundIndex, _) = findDropTarget(
+                                    event.nativeEvent as org.w3c.dom.events.MouseEvent,
+                                    container.children
+                                )
+                                var insertIndex = foundIndex
 
                                 // Helper to merge into existing group
                                 fun mergeIntoGroup(groupType: String, items: List<PostcardItem>) {
@@ -523,7 +473,7 @@ fun ExportScreen(monsterId: Int, onBack: () -> Unit) {
                                         postcardItems = newList
                                     } else {
                                         // Create new group
-                                        val groupLabel = when(groupType) {
+                                        val groupLabel = when (groupType) {
                                             "GROUP_ACTIONS" -> "Actions"
                                             "GROUP_REACTIONS" -> "Reactions"
                                             "GROUP_TRAITS" -> "Traits"
@@ -543,9 +493,38 @@ fun ExportScreen(monsterId: Int, onBack: () -> Unit) {
                                         val childrenItems = mutableListOf<PostcardItem>()
                                         var currentId = Date.now()
                                         when (type) {
-                                            "GROUP_TRAITS" -> m.traits.forEach { childrenItems.add(PostcardItem(currentId++, "TRAIT", it.name, it.description)) }
-                                            "GROUP_ACTIONS" -> m.actions.forEach { childrenItems.add(PostcardItem(currentId++, "ACTION", it.name, it.description)) }
-                                            "GROUP_REACTIONS" -> m.reactions.forEach { childrenItems.add(PostcardItem(currentId++, "REACTION", it.name, it.description)) }
+                                            "GROUP_TRAITS" -> m.traits.forEach {
+                                                childrenItems.add(
+                                                    PostcardItem(
+                                                        currentId++,
+                                                        "TRAIT",
+                                                        it.name,
+                                                        it.description
+                                                    )
+                                                )
+                                            }
+
+                                            "GROUP_ACTIONS" -> m.actions.forEach {
+                                                childrenItems.add(
+                                                    PostcardItem(
+                                                        currentId++,
+                                                        "ACTION",
+                                                        it.name,
+                                                        it.description
+                                                    )
+                                                )
+                                            }
+
+                                            "GROUP_REACTIONS" -> m.reactions.forEach {
+                                                childrenItems.add(
+                                                    PostcardItem(
+                                                        currentId++,
+                                                        "REACTION",
+                                                        it.name,
+                                                        it.description
+                                                    )
+                                                )
+                                            }
                                         }
                                         if (childrenItems.isNotEmpty()) {
                                             mergeIntoGroup(type, childrenItems)
@@ -641,11 +620,11 @@ fun ExportScreen(monsterId: Int, onBack: () -> Unit) {
                                 fontFamily("Book Antiqua", "Palatino Linotype", "Palatino", "serif")
                                 color(Color("#58180d"))
                                 position(Position.Relative)
-                                
+
                                 // Default to InlineBlock to allow side-by-side
                                 display(DisplayStyle.InlineBlock)
                                 property("vertical-align", "top")
-                                
+
                                 if (item.width != null) {
                                     width(item.width.px)
                                 }
@@ -659,7 +638,7 @@ fun ExportScreen(monsterId: Int, onBack: () -> Unit) {
                                 } else if (item.type == "IMAGE") {
                                     val imgData = JSON.parse<dynamic>(item.value)
                                     val align = imgData.align as String
-                                    
+
                                     if (item.width == null) {
                                         when (align) {
                                             "left" -> {
@@ -667,11 +646,13 @@ fun ExportScreen(monsterId: Int, onBack: () -> Unit) {
                                                 marginRight(10.px)
                                                 property("width", "auto")
                                             }
+
                                             "right" -> {
                                                 property("float", "right")
                                                 marginLeft(10.px)
                                                 property("width", "auto")
                                             }
+
                                             else -> {
                                                 display(DisplayStyle.Block)
                                                 property("width", "100%")
@@ -686,10 +667,12 @@ fun ExportScreen(monsterId: Int, onBack: () -> Unit) {
                                                 property("float", "left")
                                                 marginRight(10.px)
                                             }
+
                                             "right" -> {
                                                 property("float", "right")
                                                 marginLeft(10.px)
                                             }
+
                                             else -> {
                                                 display(DisplayStyle.Block)
                                                 textAlign("center")
@@ -726,77 +709,62 @@ fun ExportScreen(monsterId: Int, onBack: () -> Unit) {
                                         try {
                                             val json = JSON.parse<dynamic>(data)
                                             val source = json.source as String
-                                            val type = json.type as String
-                                            val label = json.label as String
-                                            val value = json.value as String
                                             val id = if (source == "child") json.id as Double else Date.now()
-                                            
-                                            // Check if type matches group type
-                                            val expectedType = when(item.type) {
-                                                "GROUP_ACTIONS" -> "ACTION"
-                                                "GROUP_REACTIONS" -> "REACTION"
-                                                "GROUP_TRAITS" -> "TRAIT"
-                                                else -> ""
-                                            }
-                                            
-                                            if (type == expectedType || type == "SEPARATOR") {
-                                                if (source == "list") {
-                                                    if (item.children.none { it.label == label && it.value == value }) {
-                                                        val newItem = PostcardItem(id, type, label, value)
-                                                        val newChildren = item.children + newItem
-                                                        val newItemWithChildren = item.copy(children = newChildren)
-                                                        val index = postcardItems.indexOfFirst { it.id == item.id }
-                                                        if (index != -1) {
-                                                            val newList = postcardItems.toMutableList()
-                                                            newList[index] = newItemWithChildren
-                                                            postcardItems = newList
-                                                        }
-                                                    }
-                                                } else if (source == "child") {
-                                                    val oldChildIndex = item.children.indexOfFirst { it.id == id }
-                                                    if (oldChildIndex != -1) {
-                                                        val child = item.children[oldChildIndex]
-                                                        val newChildren = item.children.toMutableList()
-                                                        newChildren.removeAt(oldChildIndex)
-                                                        newChildren.add(child)
-                                                        val newItemWithChildren = item.copy(children = newChildren)
-                                                        val index = postcardItems.indexOfFirst { it.id == item.id }
-                                                        if (index != -1) {
-                                                            val newList = postcardItems.toMutableList()
-                                                            newList[index] = newItemWithChildren
-                                                            postcardItems = newList
-                                                        }
+
+                                            if (source == "child") {
+                                                val oldChildIndex = item.children.indexOfFirst { it.id == id }
+                                                if (oldChildIndex != -1) {
+                                                    val childItem = item.children[oldChildIndex]
+                                                    val newChildren = item.children.toMutableList()
+                                                    newChildren.removeAt(oldChildIndex)
+                                                    var insertIdx = index
+                                                    if (oldChildIndex < index) insertIdx--
+                                                    if (insertIdx < 0) insertIdx = 0
+                                                    if (insertIdx > newChildren.size) insertIdx = newChildren.size
+                                                    newChildren.add(insertIdx, childItem)
+                                                    val newItemWithChildren = item.copy(children = newChildren)
+                                                    val groupIndex = postcardItems.indexOfFirst { it.id == item.id }
+                                                    if (groupIndex != -1) {
+                                                        val newList = postcardItems.toMutableList()
+                                                        newList[groupIndex] = newItemWithChildren
+                                                        postcardItems = newList
                                                     }
                                                 }
                                             }
-                                        } catch (e: Exception) { console.error(e) }
+                                        } catch (e: Exception) {
+                                            console.error(e)
+                                        }
                                     }
                                 }
                             }
-                            onMouseEnter { 
+                            onMouseEnter {
                                 (it.target as HTMLElement).style.border = "1px dashed #58180d"
-                                (it.currentTarget as HTMLElement).querySelector(".delete-btn")?.unsafeCast<HTMLElement>()?.style?.opacity = "1"
-                                (it.currentTarget as HTMLElement).querySelector(".resize-handle")?.unsafeCast<HTMLElement>()?.style?.opacity = "0.5"
+                                (it.currentTarget as HTMLElement).querySelector(".delete-btn")
+                                    ?.unsafeCast<HTMLElement>()?.style?.opacity = "1"
+                                (it.currentTarget as HTMLElement).querySelector(".resize-handle")
+                                    ?.unsafeCast<HTMLElement>()?.style?.opacity = "0.5"
                             }
-                            onMouseLeave { 
+                            onMouseLeave {
                                 (it.target as HTMLElement).style.border = "1px dashed transparent"
-                                (it.currentTarget as HTMLElement).querySelector(".delete-btn")?.unsafeCast<HTMLElement>()?.style?.opacity = "0"
-                                (it.currentTarget as HTMLElement).querySelector(".resize-handle")?.unsafeCast<HTMLElement>()?.style?.opacity = "0"
+                                (it.currentTarget as HTMLElement).querySelector(".delete-btn")
+                                    ?.unsafeCast<HTMLElement>()?.style?.opacity = "0"
+                                (it.currentTarget as HTMLElement).querySelector(".resize-handle")
+                                    ?.unsafeCast<HTMLElement>()?.style?.opacity = "0"
                             }
                         }) {
                             // Content Container
                             Div({ style { width(100.percent) } }) {
                                 if (item.type.startsWith("GROUP_")) {
                                     // Render Group Header
-                                    val headerText = when(item.type) {
+                                    val headerText = when (item.type) {
                                         "GROUP_ACTIONS" -> "Actions"
                                         "GROUP_REACTIONS" -> "Reactions"
                                         else -> "" // Traits don't have header
                                     }
                                     if (headerText.isNotEmpty()) {
-                                        H3({ 
-                                            classes(MonsterSheetStyle.sectionHeader) 
-                                            style { 
+                                        H3({
+                                            classes(MonsterSheetStyle.sectionHeader)
+                                            style {
                                                 width(100.percent)
                                                 fontSize((18 * fontSizeScale).px)
                                                 marginBottom((5 * marginScale).px)
@@ -804,12 +772,12 @@ fun ExportScreen(monsterId: Int, onBack: () -> Unit) {
                                             }
                                         }) { Text(headerText) }
                                     }
-                                    
+
                                     // Render Children
                                     item.children.forEachIndexed { index, child ->
-                                        Div({ 
+                                        Div({
                                             draggable(Draggable.True)
-                                            style { 
+                                            style {
                                                 display(DisplayStyle.Flex)
                                                 justifyContent(JustifyContent.SpaceBetween)
                                                 alignItems(AlignItems.Start)
@@ -837,10 +805,12 @@ fun ExportScreen(monsterId: Int, onBack: () -> Unit) {
                                                     try {
                                                         val json = JSON.parse<dynamic>(data)
                                                         val source = json.source as String
-                                                        val id = if (source == "child") json.id as Double else Date.now()
-                                                        
+                                                        val id =
+                                                            if (source == "child") json.id as Double else Date.now()
+
                                                         if (source == "child") {
-                                                            val oldChildIndex = item.children.indexOfFirst { it.id == id }
+                                                            val oldChildIndex =
+                                                                item.children.indexOfFirst { it.id == id }
                                                             if (oldChildIndex != -1) {
                                                                 val childItem = item.children[oldChildIndex]
                                                                 val newChildren = item.children.toMutableList()
@@ -848,10 +818,13 @@ fun ExportScreen(monsterId: Int, onBack: () -> Unit) {
                                                                 var insertIdx = index
                                                                 if (oldChildIndex < index) insertIdx--
                                                                 if (insertIdx < 0) insertIdx = 0
-                                                                if (insertIdx > newChildren.size) insertIdx = newChildren.size
+                                                                if (insertIdx > newChildren.size) insertIdx =
+                                                                    newChildren.size
                                                                 newChildren.add(insertIdx, childItem)
-                                                                val newItemWithChildren = item.copy(children = newChildren)
-                                                                val groupIndex = postcardItems.indexOfFirst { it.id == item.id }
+                                                                val newItemWithChildren =
+                                                                    item.copy(children = newChildren)
+                                                                val groupIndex =
+                                                                    postcardItems.indexOfFirst { it.id == item.id }
                                                                 if (groupIndex != -1) {
                                                                     val newList = postcardItems.toMutableList()
                                                                     newList[groupIndex] = newItemWithChildren
@@ -859,14 +832,18 @@ fun ExportScreen(monsterId: Int, onBack: () -> Unit) {
                                                                 }
                                                             }
                                                         }
-                                                    } catch (e: Exception) { console.error(e) }
+                                                    } catch (e: Exception) {
+                                                        console.error(e)
+                                                    }
                                                 }
                                             }
-                                            onMouseEnter { 
-                                                (it.currentTarget as HTMLElement).querySelector(".child-delete-btn")?.unsafeCast<HTMLElement>()?.style?.opacity = "1"
+                                            onMouseEnter {
+                                                (it.currentTarget as HTMLElement).querySelector(".child-delete-btn")
+                                                    ?.unsafeCast<HTMLElement>()?.style?.opacity = "1"
                                             }
-                                            onMouseLeave { 
-                                                (it.currentTarget as HTMLElement).querySelector(".child-delete-btn")?.unsafeCast<HTMLElement>()?.style?.opacity = "0"
+                                            onMouseLeave {
+                                                (it.currentTarget as HTMLElement).querySelector(".child-delete-btn")
+                                                    ?.unsafeCast<HTMLElement>()?.style?.opacity = "0"
                                             }
                                         }) {
                                             Div({ style { flex(1) } }) {
@@ -881,9 +858,9 @@ fun ExportScreen(monsterId: Int, onBack: () -> Unit) {
                                                         }
                                                     }) {}
                                                 } else {
-                                                    Div({ 
+                                                    Div({
                                                         classes(MonsterSheetStyle.traitBlock)
-                                                        style { 
+                                                        style {
                                                             fontSize((14 * fontSizeScale).px)
                                                             marginBottom((5 * marginScale).px)
                                                             lineHeight((1.0 * marginScale).em)
@@ -947,6 +924,7 @@ fun ExportScreen(monsterId: Int, onBack: () -> Unit) {
                                                 }
                                             }) {}
                                         }
+
                                         "STATS_BLOCK" -> {
                                             val stats = JSON.parse<dynamic>(item.value)
                                             val statNames = listOf("STR", "DEX", "CON", "INT", "WIS", "CHA")
@@ -965,33 +943,36 @@ fun ExportScreen(monsterId: Int, onBack: () -> Unit) {
                                                         classes(MonsterSheetStyle.abilityScore)
                                                         style { property("width", "auto") }
                                                     }) {
-                                                        Span({ 
+                                                        Span({
                                                             classes(MonsterSheetStyle.abilityScoreLabel)
                                                             style { fontSize((12 * fontSizeScale).px) }
                                                         }) { Text(statName) }
-                                                        Span({ 
+                                                        Span({
                                                             style { fontSize((14 * fontSizeScale).px) }
                                                         }) { Text("$score ($sign$modifier)") }
                                                     }
                                                 }
                                             }
                                         }
+
                                         "IMAGE" -> {
                                             val imgData = JSON.parse<dynamic>(item.value)
                                             val url = imgData.url as String
                                             val scale = imgData.scale as Double
                                             val align = imgData.align as String
-                                            
+
                                             Div({
                                                 style {
                                                     display(DisplayStyle.InlineBlock)
                                                     position(Position.Relative)
                                                 }
-                                                onMouseEnter { 
-                                                    (it.currentTarget as HTMLElement).querySelector(".image-controls")?.unsafeCast<HTMLElement>()?.style?.opacity = "1"
+                                                onMouseEnter {
+                                                    (it.currentTarget as HTMLElement).querySelector(".image-controls")
+                                                        ?.unsafeCast<HTMLElement>()?.style?.opacity = "1"
                                                 }
-                                                onMouseLeave { 
-                                                    (it.currentTarget as HTMLElement).querySelector(".image-controls")?.unsafeCast<HTMLElement>()?.style?.opacity = "0"
+                                                onMouseLeave {
+                                                    (it.currentTarget as HTMLElement).querySelector(".image-controls")
+                                                        ?.unsafeCast<HTMLElement>()?.style?.opacity = "0"
                                                 }
                                             }) {
                                                 Img(src = url, alt = "Monster Image") {
@@ -1006,7 +987,7 @@ fun ExportScreen(monsterId: Int, onBack: () -> Unit) {
                                                         property("display", "block")
                                                     }
                                                 }
-                                                
+
                                                 // Controls
                                                 Div({
                                                     classes("image-controls")
@@ -1040,63 +1021,84 @@ fun ExportScreen(monsterId: Int, onBack: () -> Unit) {
                                                         }
                                                     }
 
-                                                    Button({ 
+                                                    Button({
                                                         style { padding(2.px, 5.px); cursor("pointer") }
-                                                        onClick { update((scale - 0.1).coerceAtLeast(0.1), align) } 
+                                                        onClick { update((scale - 0.1).coerceAtLeast(0.1), align) }
                                                     }) { Text("-") }
-                                                    
-                                                    Button({ 
+
+                                                    Button({
                                                         style { padding(2.px, 5.px); cursor("pointer") }
-                                                        onClick { update((scale + 0.1).coerceAtMost(3.0), align) } 
+                                                        onClick { update((scale + 0.1).coerceAtMost(3.0), align) }
                                                     }) { Text("+") }
-                                                    
+
                                                     Span({ style { width(5.px) } }) {}
 
-                                                    Button({ 
-                                                        style { padding(2.px, 5.px); cursor("pointer"); fontWeight(if(align=="left") "bold" else "normal") }
-                                                        onClick { update(scale, "left") } 
+                                                    Button({
+                                                        style {
+                                                            padding(
+                                                                2.px,
+                                                                5.px
+                                                            ); cursor("pointer"); fontWeight(if (align == "left") "bold" else "normal")
+                                                        }
+                                                        onClick { update(scale, "left") }
                                                     }) { Text("L") }
-                                                    
-                                                    Button({ 
-                                                        style { padding(2.px, 5.px); cursor("pointer"); fontWeight(if(align=="center") "bold" else "normal") }
-                                                        onClick { update(scale, "center") } 
+
+                                                    Button({
+                                                        style {
+                                                            padding(
+                                                                2.px,
+                                                                5.px
+                                                            ); cursor("pointer"); fontWeight(if (align == "center") "bold" else "normal")
+                                                        }
+                                                        onClick { update(scale, "center") }
                                                     }) { Text("C") }
-                                                    
-                                                    Button({ 
-                                                        style { padding(2.px, 5.px); cursor("pointer"); fontWeight(if(align=="right") "bold" else "normal") }
-                                                        onClick { update(scale, "right") } 
+
+                                                    Button({
+                                                        style {
+                                                            padding(
+                                                                2.px,
+                                                                5.px
+                                                            ); cursor("pointer"); fontWeight(if (align == "right") "bold" else "normal")
+                                                        }
+                                                        onClick { update(scale, "right") }
                                                     }) { Text("R") }
                                                 }
                                             }
                                         }
+
                                         "PROPERTY" -> {
                                             if (item.label == "Name") {
-                                                H1({ 
+                                                H1({
                                                     classes(MonsterSheetStyle.monsterName)
-                                                    style { 
-                                                        fontSize((24 * fontSizeScale).px) 
+                                                    style {
+                                                        fontSize((24 * fontSizeScale).px)
                                                         margin(0.px)
                                                         marginBottom((5 * marginScale).px)
                                                         lineHeight((1.0 * marginScale).em)
-                                                    } 
+                                                    }
                                                 }) { Text(item.value) }
                                             } else {
-                                                Div({ 
+                                                Div({
                                                     classes(MonsterSheetStyle.propertyLine)
-                                                    style { 
+                                                    style {
                                                         alignItems(AlignItems.Baseline)
                                                         margin(0.px)
                                                         marginBottom((2 * marginScale).px)
                                                         fontSize((14 * fontSizeScale).px)
                                                         lineHeight((1.0 * marginScale).em)
-                                                    } 
+                                                    }
                                                 }) {
                                                     Span({ classes(MonsterSheetStyle.propertyLabel) }) { Text("${item.label} ") }
-                                                    Span({ 
-                                                        style { 
-                                                            color(Color("#58180d")) 
-                                                            fontFamily("Book Antiqua", "Palatino Linotype", "Palatino", "serif")
-                                                        } 
+                                                    Span({
+                                                        style {
+                                                            color(Color("#58180d"))
+                                                            fontFamily(
+                                                                "Book Antiqua",
+                                                                "Palatino Linotype",
+                                                                "Palatino",
+                                                                "serif"
+                                                            )
+                                                        }
                                                     }) { Text(item.value) }
                                                 }
                                             }
@@ -1119,12 +1121,12 @@ fun ExportScreen(monsterId: Int, onBack: () -> Unit) {
                                     property("z-index", "20")
                                     opacity(0) // Hidden by default
                                 }
-                                onMouseEnter { 
+                                onMouseEnter {
                                     (it.target as HTMLElement).style.opacity = "1"
                                     (it.target as HTMLElement).style.backgroundColor = "#ccc"
                                     (it.target as HTMLElement).style.width = "10px" // Expand on hover
                                 }
-                                onMouseLeave { 
+                                onMouseLeave {
                                     (it.target as HTMLElement).style.opacity = "0"
                                     (it.target as HTMLElement).style.backgroundColor = "transparent"
                                     (it.target as HTMLElement).style.width = "1px"
@@ -1135,14 +1137,14 @@ fun ExportScreen(monsterId: Int, onBack: () -> Unit) {
                                     val startX = event.clientX
                                     val parent = (event.target as HTMLElement).parentElement as HTMLElement
                                     val startWidth = item.width ?: parent.getBoundingClientRect().width
-                                    
+
                                     var onMouseMove: ((org.w3c.dom.events.Event) -> Unit)? = null
                                     var onMouseUp: ((org.w3c.dom.events.Event) -> Unit)? = null
-                                    
+
                                     onMouseMove = { e ->
                                         val mouseEvent = e as org.w3c.dom.events.MouseEvent
                                         val newWidth = (startWidth + (mouseEvent.clientX - startX)).coerceAtLeast(20.0)
-                                        
+
                                         val idx = postcardItems.indexOfFirst { it.id == item.id }
                                         if (idx != -1) {
                                             val newList = postcardItems.toMutableList()
@@ -1150,12 +1152,12 @@ fun ExportScreen(monsterId: Int, onBack: () -> Unit) {
                                             postcardItems = newList
                                         }
                                     }
-                                    
+
                                     onMouseUp = { e ->
                                         window.removeEventListener("mousemove", onMouseMove)
                                         window.removeEventListener("mouseup", onMouseUp)
                                     }
-                                    
+
                                     window.addEventListener("mousemove", onMouseMove)
                                     window.addEventListener("mouseup", onMouseUp)
                                 }
@@ -1230,37 +1232,37 @@ fun ExportScreen(monsterId: Int, onBack: () -> Unit) {
 
 @Composable
 fun ControlGroup(label: String, value: String, onInc: () -> Unit, onDec: () -> Unit) {
-    Div({ 
-        style { 
+    Div({
+        style {
             display(DisplayStyle.Flex)
             gap(5.px)
             alignItems(AlignItems.Center)
             backgroundColor(Color("rgba(255,255,255,0.1)"))
             padding(5.px)
             borderRadius(4.px)
-        } 
+        }
     }) {
-        Div({ 
-            style { 
+        Div({
+            style {
                 display(DisplayStyle.Flex)
                 flexDirection(FlexDirection.Column)
                 alignItems(AlignItems.Center)
                 minWidth(40.px)
-            } 
+            }
         }) {
             Span({ style { color(Color.white); fontSize(10.px) } }) { Text(label) }
             Span({ style { color(Color.white); fontWeight("bold") } }) { Text(value) }
         }
-        Div({ 
-            style { 
+        Div({
+            style {
                 display(DisplayStyle.Flex)
                 flexDirection(FlexDirection.Column)
-                gap(2.px) 
-            } 
+                gap(2.px)
+            }
         }) {
             Button(attrs = {
                 classes(MonsterSheetStyle.dndButton)
-                style { 
+                style {
                     padding(0.px, 4.px)
                     fontSize(10.px)
                     lineHeight(1.2.em)
@@ -1270,7 +1272,7 @@ fun ControlGroup(label: String, value: String, onInc: () -> Unit, onDec: () -> U
             }) { Text("+") }
             Button(attrs = {
                 classes(MonsterSheetStyle.dndButton)
-                style { 
+                style {
                     padding(0.px, 4.px)
                     fontSize(10.px)
                     lineHeight(1.2.em)
@@ -1280,4 +1282,97 @@ fun ControlGroup(label: String, value: String, onInc: () -> Unit, onDec: () -> U
             }) { Text("-") }
         }
     }
+}
+
+fun findDropTarget(event: org.w3c.dom.events.MouseEvent, children: org.w3c.dom.HTMLCollection): Pair<Int, String> {
+    var targetChild: HTMLElement? = null
+    var targetIndex = -1
+    var itemIndex = 0
+
+    // Check for direct hover
+    for (i in 0 until children.length) {
+        val child = children.item(i) as HTMLElement
+        if (child.getAttribute("data-is-item") != "true") continue
+
+        val rect = child.getBoundingClientRect()
+        if (event.clientX >= rect.left && event.clientX <= rect.right &&
+            event.clientY >= rect.top && event.clientY <= rect.bottom
+        ) {
+            targetChild = child
+            targetIndex = itemIndex
+            break
+        }
+        itemIndex++
+    }
+
+    if (targetChild != null) {
+        val rect = targetChild.getBoundingClientRect()
+        val x = event.clientX - rect.left
+        val y = event.clientY - rect.top
+        val w = rect.width
+        val h = rect.height
+
+        val nx = x / w
+        val ny = y / h
+
+        val dTop = ny
+        val dBottom = 1 - ny
+        val dLeft = nx
+        val dRight = 1 - nx
+
+        val min = minOf(dTop, dBottom, dLeft, dRight)
+
+        return when (min) {
+            dTop -> targetIndex to "HORIZONTAL"
+            dBottom -> targetIndex + 1 to "HORIZONTAL"
+            dLeft -> targetIndex to "VERTICAL"
+            dRight -> targetIndex + 1 to "VERTICAL"
+            else -> targetIndex to "HORIZONTAL"
+        }
+    }
+
+    // Find closest
+    var closestDist = Double.MAX_VALUE
+    var closestIndex = -1
+    var closestSide = "bottom"
+
+    itemIndex = 0
+    for (i in 0 until children.length) {
+        val child = children.item(i) as HTMLElement
+        if (child.getAttribute("data-is-item") != "true") continue
+        val rect = child.getBoundingClientRect()
+
+        val cx = rect.left + rect.width / 2
+        val cy = rect.top + rect.height / 2
+        val dist = kotlin.math.sqrt((event.clientX - cx).let { it * it } + (event.clientY - cy).let { it * it })
+
+        if (dist < closestDist) {
+            closestDist = dist
+            closestIndex = itemIndex
+
+            val dx = event.clientX - cx
+            val dy = event.clientY - cy
+            val w = rect.width
+            val h = rect.height
+
+            if (kotlin.math.abs(dy) / h > kotlin.math.abs(dx) / w) {
+                closestSide = if (dy < 0) "top" else "bottom"
+            } else {
+                closestSide = if (dx < 0) "left" else "right"
+            }
+        }
+        itemIndex++
+    }
+
+    if (closestIndex != -1) {
+        return when (closestSide) {
+            "top" -> closestIndex to "HORIZONTAL"
+            "bottom" -> closestIndex + 1 to "HORIZONTAL"
+            "left" -> closestIndex to "VERTICAL"
+            "right" -> closestIndex + 1 to "VERTICAL"
+            else -> closestIndex to "HORIZONTAL"
+        }
+    }
+
+    return itemIndex to "HORIZONTAL"
 }
