@@ -34,11 +34,15 @@ fun ExportScreen(monsterId: Int, onBack: () -> Unit) {
         val children: List<PostcardItem> = emptyList(),
         val width: Double? = null
     )
+    
+    data class DraggableOption(val type: String, val label: String, val value: String)
+
     var postcardItems by remember { mutableStateOf(listOf<PostcardItem>()) }
     var isLandscape by remember { mutableStateOf(false) }
     var fontSizeScale by remember { mutableStateOf(1.0) }
     var paddingScale by remember { mutableStateOf(1.0) }
     var marginScale by remember { mutableStateOf(1.0) }
+    var zoomScale by remember { mutableStateOf(1.0) }
     var dropIndicatorIndex by remember { mutableStateOf<Int?>(null) }
     var dropIndicatorType by remember { mutableStateOf("HORIZONTAL") }
 
@@ -58,14 +62,92 @@ fun ExportScreen(monsterId: Int, onBack: () -> Unit) {
     }
 
     val m = monster!!
+    
+    val draggableOptions = remember(m) {
+        val options = mutableListOf<DraggableOption>()
+        
+        // Special item: Line
+        options.add(DraggableOption("SEPARATOR", "Line", ""))
+        
+        if (!m.imageUrl.isNullOrBlank()) {
+            val imgData = js("{}")
+            val url = m.imageUrl!!
+            if (url.startsWith("http") || url.startsWith("data:")) {
+                imgData.url = url
+            } else {
+                val baseUrl = getBaseUrl()
+                imgData.url = if (url.startsWith("/")) "$baseUrl$url" else "$baseUrl/$url"
+            }
+            imgData.scale = 1.0
+            imgData.align = "right"
+            options.add(DraggableOption("IMAGE", "Monster Image", JSON.stringify(imgData)))
+        }
+
+        options.add(DraggableOption("PROPERTY", "Name", m.name))
+        options.add(DraggableOption("PROPERTY", "HP", m.hitPoints))
+        options.add(DraggableOption("PROPERTY", "AC", "${m.armorClass.value}"))
+        options.add(DraggableOption("PROPERTY", "Speed", m.speed))
+        
+        // Stats Block
+        val statsObj = js("{}")
+        statsObj["STR"] = m.str.value
+        statsObj["DEX"] = m.dex.value
+        statsObj["CON"] = m.con.value
+        statsObj["INT"] = m.int.value
+        statsObj["WIS"] = m.wis.value
+        statsObj["CHA"] = m.cha.value
+        options.add(DraggableOption("STATS_BLOCK", "Stats", JSON.stringify(statsObj)))
+        
+        if (!m.savingThrows.isNullOrBlank()) {
+            options.add(DraggableOption("PROPERTY", "Saving Throws", m.savingThrows!!))
+        }
+        if (!m.skills.isNullOrBlank()) {
+            options.add(DraggableOption("PROPERTY", "Skills", m.skills!!))
+        }
+        
+        options.add(DraggableOption("PROPERTY", "Challenge", m.challenge))
+        options.add(DraggableOption("PROPERTY", "Senses", m.senses))
+        options.add(DraggableOption("PROPERTY", "Languages", m.languages))
+        
+        if (m.traits.isNotEmpty()) {
+            options.add(DraggableOption("GROUP_TRAITS", "All Traits", "Drag to add all traits"))
+            m.traits.forEach {
+                options.add(DraggableOption("TRAIT", it.name, it.description))
+            }
+        }
+        
+        if (m.actions.isNotEmpty()) {
+            options.add(DraggableOption("GROUP_ACTIONS", "All Actions", "Drag to add all actions"))
+            m.actions.forEach { 
+                options.add(DraggableOption("ACTION", it.name, it.description)) 
+            }
+        }
+        
+        if (m.reactions.isNotEmpty()) {
+            options.add(DraggableOption("GROUP_REACTIONS", "All Reactions", "Drag to add all reactions"))
+            m.reactions.forEach { 
+                options.add(DraggableOption("REACTION", it.name, it.description)) 
+            }
+        }
+        options
+    }
 
     Div({
         style {
+            position(Position.Fixed)
+            top(0.px)
+            left(0.px)
+            width(100.percent)
+            height(100.percent)
+            
             display(DisplayStyle.Flex)
             flexDirection(FlexDirection.Column)
-            height(100.vh)
             padding(20.px)
             gap(20.px)
+            property("box-sizing", "border-box")
+            backgroundColor(Color("#2b2b2b"))
+            color(Color.white)
+            overflow("hidden") // Prevent root scrolling
         }
     }) {
         // Top Menu Bar
@@ -78,54 +160,76 @@ fun ExportScreen(monsterId: Int, onBack: () -> Unit) {
                 paddingBottom(10.px)
                 property("border-bottom", "1px solid #ccc")
                 flexWrap(FlexWrap.Wrap)
+                flexShrink(0)
             }
         }) {
             Button(attrs = {
                 classes(MonsterSheetStyle.dndButton)
                 onClick { onBack() } 
             }) { Text("Back") }
+            
+            Button(attrs = {
+                classes(MonsterSheetStyle.dndButton)
+                onClick {
+                    val newItems = mutableListOf<PostcardItem>()
+                    var currentId = Date.now()
+                    
+                    draggableOptions.forEach { option ->
+                        if (option.type != "SEPARATOR" && !option.type.startsWith("GROUP_")) {
+                            newItems.add(PostcardItem(id = currentId++, type = option.type, label = option.label, value = option.value))
+                        }
+                    }
+                    
+                    val groupedItems = mutableListOf<PostcardItem>()
+                    
+                    // Add properties
+                    newItems.filter { it.type == "PROPERTY" || it.type == "STATS_BLOCK" || it.type == "IMAGE" }.forEach { groupedItems.add(it) }
+                    
+                    // Add Traits Group
+                    val traits = newItems.filter { it.type == "TRAIT" }
+                    if (traits.isNotEmpty()) {
+                        groupedItems.add(PostcardItem(currentId++, "GROUP_TRAITS", "Traits", "", traits))
+                    }
+                    
+                    // Add Actions Group
+                    val actions = newItems.filter { it.type == "ACTION" }
+                    if (actions.isNotEmpty()) {
+                        groupedItems.add(PostcardItem(currentId++, "GROUP_ACTIONS", "Actions", "", actions))
+                    }
+                    
+                    // Add Reactions Group
+                    val reactions = newItems.filter { it.type == "REACTION" }
+                    if (reactions.isNotEmpty()) {
+                        groupedItems.add(PostcardItem(currentId++, "GROUP_REACTIONS", "Reactions", "", reactions))
+                    }
+                    
+                    postcardItems = groupedItems
+                }
+            }) { Text("Add All Items") }
 
             // Font Size
-            Div({ style { display(DisplayStyle.Flex); gap(5.px); alignItems(AlignItems.Center) } }) {
-                Span({ style { color(Color.white) } }) { Text("Font:") }
-                Button(attrs = {
-                    classes(MonsterSheetStyle.dndButton)
-                    onClick { fontSizeScale = (fontSizeScale - 0.1).coerceAtLeast(0.5) }
-                }) { Text("-") }
-                Span({ style { color(Color.white) } }) { Text("${(fontSizeScale * 100).toInt()}%") }
-                Button(attrs = {
-                    classes(MonsterSheetStyle.dndButton)
-                    onClick { fontSizeScale = (fontSizeScale + 0.1).coerceAtMost(2.0) }
-                }) { Text("+") }
-            }
+            ControlGroup("Font", "${(fontSizeScale * 100).toInt()}%", 
+                { fontSizeScale = (fontSizeScale + 0.1).coerceAtMost(2.0) },
+                { fontSizeScale = (fontSizeScale - 0.1).coerceAtLeast(0.5) }
+            )
             
             // Padding
-            Div({ style { display(DisplayStyle.Flex); gap(5.px); alignItems(AlignItems.Center) } }) {
-                Span({ style { color(Color.white) } }) { Text("Pad:") }
-                Button(attrs = {
-                    classes(MonsterSheetStyle.dndButton)
-                    onClick { paddingScale = (paddingScale - 0.1).coerceAtLeast(0.0) }
-                }) { Text("-") }
-                Span({ style { color(Color.white) } }) { Text("${(paddingScale * 100).toInt()}%") }
-                Button(attrs = {
-                    classes(MonsterSheetStyle.dndButton)
-                    onClick { paddingScale = (paddingScale + 0.1).coerceAtMost(2.0) }
-                }) { Text("+") }
-            }
+            ControlGroup("Pad", "${(paddingScale * 100).toInt()}%", 
+                { paddingScale = (paddingScale + 0.1).coerceAtMost(2.0) },
+                { paddingScale = (paddingScale - 0.1).coerceAtLeast(0.0) }
+            )
 
             // Margin
-            Div({ style { display(DisplayStyle.Flex); gap(5.px); alignItems(AlignItems.Center) } }) {
-                Span({ style { color(Color.white) } }) { Text("Marg:") }
-                Button(attrs = {
-                    classes(MonsterSheetStyle.dndButton)
-                    onClick { marginScale = (marginScale - 0.1).coerceAtLeast(0.0) }
-                }) { Text("-") }
-                Span({ style { color(Color.white) } }) { Text("${(marginScale * 100).toInt()}%") }
-                Button(attrs = {
-                    classes(MonsterSheetStyle.dndButton)
-                    onClick { marginScale = (marginScale + 0.1).coerceAtMost(2.0) }
-                }) { Text("+") }
-            }
+            ControlGroup("Marg", "${(marginScale * 100).toInt()}%", 
+                { marginScale = (marginScale + 0.1).coerceAtMost(2.0) },
+                { marginScale = (marginScale - 0.1).coerceAtLeast(0.0) }
+            )
+
+            // Zoom
+            ControlGroup("Zoom", "${(zoomScale * 100).toInt()}%", 
+                { zoomScale = (zoomScale + 0.1).coerceAtMost(3.0) },
+                { zoomScale = (zoomScale - 0.1).coerceAtLeast(0.5) }
+            )
 
             Button(attrs = {
                 classes(MonsterSheetStyle.dndButton)
@@ -160,6 +264,7 @@ fun ExportScreen(monsterId: Int, onBack: () -> Unit) {
                 gap(20.px)
                 overflow("hidden")
                 width(100.percent)
+                height(100.percent)
             }
         }) {
             // Left Panel: Draggable Items
@@ -171,6 +276,7 @@ fun ExportScreen(monsterId: Int, onBack: () -> Unit) {
                     padding(10.px)
                     property("margin", "0")
                     height(100.percent)
+                    flexShrink(0)
                 }
             }) {
                 H3({
@@ -178,73 +284,6 @@ fun ExportScreen(monsterId: Int, onBack: () -> Unit) {
                     style { textAlign("center") }
                 }) { Text("Drag items to postcard") }
                 
-                data class DraggableOption(val type: String, val label: String, val value: String)
-                val draggableOptions = mutableListOf<DraggableOption>()
-                
-                // Special item: Line
-                draggableOptions.add(DraggableOption("SEPARATOR", "Line", ""))
-                
-                if (!m.imageUrl.isNullOrBlank()) {
-                    val imgData = js("{}")
-                    val url = m.imageUrl!!
-                    if (url.startsWith("http") || url.startsWith("data:")) {
-                        imgData.url = url
-                    } else {
-                        val baseUrl = getBaseUrl()
-                        imgData.url = if (url.startsWith("/")) "$baseUrl$url" else "$baseUrl/$url"
-                    }
-                    imgData.scale = 1.0
-                    imgData.align = "right"
-                    draggableOptions.add(DraggableOption("IMAGE", "Monster Image", JSON.stringify(imgData)))
-                }
-
-                draggableOptions.add(DraggableOption("PROPERTY", "Name", m.name))
-                draggableOptions.add(DraggableOption("PROPERTY", "HP", m.hitPoints))
-                draggableOptions.add(DraggableOption("PROPERTY", "AC", "${m.armorClass.value}"))
-                draggableOptions.add(DraggableOption("PROPERTY", "Speed", m.speed))
-                
-                // Stats Block
-                val statsObj = js("{}")
-                statsObj["STR"] = m.str.value
-                statsObj["DEX"] = m.dex.value
-                statsObj["CON"] = m.con.value
-                statsObj["INT"] = m.int.value
-                statsObj["WIS"] = m.wis.value
-                statsObj["CHA"] = m.cha.value
-                draggableOptions.add(DraggableOption("STATS_BLOCK", "Stats", JSON.stringify(statsObj)))
-                
-                if (!m.savingThrows.isNullOrBlank()) {
-                    draggableOptions.add(DraggableOption("PROPERTY", "Saving Throws", m.savingThrows!!))
-                }
-                if (!m.skills.isNullOrBlank()) {
-                    draggableOptions.add(DraggableOption("PROPERTY", "Skills", m.skills!!))
-                }
-                
-                draggableOptions.add(DraggableOption("PROPERTY", "Challenge", m.challenge))
-                draggableOptions.add(DraggableOption("PROPERTY", "Senses", m.senses))
-                draggableOptions.add(DraggableOption("PROPERTY", "Languages", m.languages))
-                
-                if (m.traits.isNotEmpty()) {
-                    draggableOptions.add(DraggableOption("GROUP_TRAITS", "All Traits", "Drag to add all traits"))
-                    m.traits.forEach {
-                        draggableOptions.add(DraggableOption("TRAIT", it.name, it.description))
-                    }
-                }
-                
-                if (m.actions.isNotEmpty()) {
-                    draggableOptions.add(DraggableOption("GROUP_ACTIONS", "All Actions", "Drag to add all actions"))
-                    m.actions.forEach { 
-                        draggableOptions.add(DraggableOption("ACTION", it.name, it.description)) 
-                    }
-                }
-                
-                if (m.reactions.isNotEmpty()) {
-                    draggableOptions.add(DraggableOption("GROUP_REACTIONS", "All Reactions", "Drag to add all reactions"))
-                    m.reactions.forEach { 
-                        draggableOptions.add(DraggableOption("REACTION", it.name, it.description)) 
-                    }
-                }
-
                 draggableOptions.forEach { option ->
                     val isGroup = option.type.startsWith("GROUP_")
                     
@@ -331,47 +370,6 @@ fun ExportScreen(monsterId: Int, onBack: () -> Unit) {
                         }
                     }
                 }
-                
-                // ... Buttons ...
-                Button(attrs = {
-                    classes(MonsterSheetStyle.dndButton)
-                    style { marginTop(20.px); width(100.percent) }
-                    onClick {
-                        val newItems = mutableListOf<PostcardItem>()
-                        var currentId = Date.now()
-                        
-                        draggableOptions.forEach { option ->
-                            if (option.type != "SEPARATOR" && !option.type.startsWith("GROUP_")) {
-                                newItems.add(PostcardItem(id = currentId++, type = option.type, label = option.label, value = option.value))
-                            }
-                        }
-                        
-                        val groupedItems = mutableListOf<PostcardItem>()
-                        
-                        // Add properties
-                        newItems.filter { it.type == "PROPERTY" || it.type == "STATS_BLOCK" || it.type == "IMAGE" }.forEach { groupedItems.add(it) }
-                        
-                        // Add Traits Group
-                        val traits = newItems.filter { it.type == "TRAIT" }
-                        if (traits.isNotEmpty()) {
-                            groupedItems.add(PostcardItem(currentId++, "GROUP_TRAITS", "Traits", "", traits))
-                        }
-                        
-                        // Add Actions Group
-                        val actions = newItems.filter { it.type == "ACTION" }
-                        if (actions.isNotEmpty()) {
-                            groupedItems.add(PostcardItem(currentId++, "GROUP_ACTIONS", "Actions", "", actions))
-                        }
-                        
-                        // Add Reactions Group
-                        val reactions = newItems.filter { it.type == "REACTION" }
-                        if (reactions.isNotEmpty()) {
-                            groupedItems.add(PostcardItem(currentId++, "GROUP_REACTIONS", "Reactions", "", reactions))
-                        }
-                        
-                        postcardItems = groupedItems
-                    }
-                }) { Text("Add All Items") }
             }
 
             // Right Panel: Postcard Preview
@@ -381,8 +379,9 @@ fun ExportScreen(monsterId: Int, onBack: () -> Unit) {
                     display(DisplayStyle.Flex)
                     justifyContent(JustifyContent.Center)
                     alignItems(AlignItems.Center)
-                    overflow("auto")
+                    overflow("hidden") // Prevent scrolling
                     height(100.percent)
+                    backgroundColor(Color("#333"))
                 }
             }) {
                 // The Postcard
@@ -400,6 +399,7 @@ fun ExportScreen(monsterId: Int, onBack: () -> Unit) {
                         position(Position.Relative)
                         property("overflow", "visible")
                         display(DisplayStyle.Block)
+                        property("transform", "scale($zoomScale)")
                     }
                     onDragOver { event -> 
                         event.preventDefault()
@@ -651,13 +651,10 @@ fun ExportScreen(monsterId: Int, onBack: () -> Unit) {
                                 }
 
                                 if (item.type == "SEPARATOR") {
-                                    property("vertical-align", "middle")
                                     if (item.width != null) {
                                         width(item.width.px)
-                                        marginRight(10.px)
                                     } else {
                                         width(100.percent)
-                                        marginRight(0.px)
                                     }
                                 } else if (item.type == "IMAGE") {
                                     val imgData = JSON.parse<dynamic>(item.value)
@@ -742,7 +739,7 @@ fun ExportScreen(monsterId: Int, onBack: () -> Unit) {
                                                 else -> ""
                                             }
                                             
-                                            if (type == expectedType) {
+                                            if (type == expectedType || type == "SEPARATOR") {
                                                 if (source == "list") {
                                                     if (item.children.none { it.label == label && it.value == value }) {
                                                         val newItem = PostcardItem(id, type, label, value)
@@ -873,16 +870,28 @@ fun ExportScreen(monsterId: Int, onBack: () -> Unit) {
                                             }
                                         }) {
                                             Div({ style { flex(1) } }) {
-                                                Div({ 
-                                                    classes(MonsterSheetStyle.traitBlock)
-                                                    style { 
-                                                        fontSize((14 * fontSizeScale).px)
-                                                        marginBottom((5 * marginScale).px)
-                                                        lineHeight((1.0 * marginScale).em)
+                                                if (child.type == "SEPARATOR") {
+                                                    Div({
+                                                        style {
+                                                            width(100.percent)
+                                                            height(2.px)
+                                                            backgroundColor(Color("#58180d"))
+                                                            marginTop((5 * paddingScale).px)
+                                                            marginBottom((5 * paddingScale).px)
+                                                        }
+                                                    }) {}
+                                                } else {
+                                                    Div({ 
+                                                        classes(MonsterSheetStyle.traitBlock)
+                                                        style { 
+                                                            fontSize((14 * fontSizeScale).px)
+                                                            marginBottom((5 * marginScale).px)
+                                                            lineHeight((1.0 * marginScale).em)
+                                                        }
+                                                    }) {
+                                                        Span({ classes(MonsterSheetStyle.traitName) }) { Text("${child.label}.") }
+                                                        Text(child.value)
                                                     }
-                                                }) {
-                                                    Span({ classes(MonsterSheetStyle.traitName) }) { Text("${child.label}.") }
-                                                    Text(child.value)
                                                 }
                                             }
                                             Span({
@@ -933,8 +942,8 @@ fun ExportScreen(monsterId: Int, onBack: () -> Unit) {
                                                     width(100.percent)
                                                     height(2.px)
                                                     backgroundColor(Color("#58180d"))
-                                                    marginTop((5 * marginScale).px)
-                                                    marginBottom((5 * marginScale).px)
+                                                    marginTop((5 * paddingScale).px)
+                                                    marginBottom((5 * paddingScale).px)
                                                 }
                                             }) {}
                                         }
@@ -1101,7 +1110,7 @@ fun ExportScreen(monsterId: Int, onBack: () -> Unit) {
                                 classes("resize-handle")
                                 attr("data-html2canvas-ignore", "true")
                                 style {
-                                    width(10.px)
+                                    width(1.px) // Reduced width to be less intrusive
                                     height(100.percent)
                                     position(Position.Absolute)
                                     right((-5).px)
@@ -1113,10 +1122,12 @@ fun ExportScreen(monsterId: Int, onBack: () -> Unit) {
                                 onMouseEnter { 
                                     (it.target as HTMLElement).style.opacity = "1"
                                     (it.target as HTMLElement).style.backgroundColor = "#ccc"
+                                    (it.target as HTMLElement).style.width = "10px" // Expand on hover
                                 }
                                 onMouseLeave { 
-                                    (it.target as HTMLElement).style.opacity = "0.5"
+                                    (it.target as HTMLElement).style.opacity = "0"
                                     (it.target as HTMLElement).style.backgroundColor = "transparent"
+                                    (it.target as HTMLElement).style.width = "1px"
                                 }
                                 onMouseDown { event ->
                                     event.stopPropagation()
@@ -1140,7 +1151,7 @@ fun ExportScreen(monsterId: Int, onBack: () -> Unit) {
                                         }
                                     }
                                     
-                                    onMouseUp = { _ ->
+                                    onMouseUp = { e ->
                                         window.removeEventListener("mousemove", onMouseMove)
                                         window.removeEventListener("mouseup", onMouseUp)
                                     }
@@ -1213,6 +1224,60 @@ fun ExportScreen(monsterId: Int, onBack: () -> Unit) {
                     }
                 }
             }
+        }
+    }
+}
+
+@Composable
+fun ControlGroup(label: String, value: String, onInc: () -> Unit, onDec: () -> Unit) {
+    Div({ 
+        style { 
+            display(DisplayStyle.Flex)
+            gap(5.px)
+            alignItems(AlignItems.Center)
+            backgroundColor(Color("rgba(255,255,255,0.1)"))
+            padding(5.px)
+            borderRadius(4.px)
+        } 
+    }) {
+        Div({ 
+            style { 
+                display(DisplayStyle.Flex)
+                flexDirection(FlexDirection.Column)
+                alignItems(AlignItems.Center)
+                minWidth(40.px)
+            } 
+        }) {
+            Span({ style { color(Color.white); fontSize(10.px) } }) { Text(label) }
+            Span({ style { color(Color.white); fontWeight("bold") } }) { Text(value) }
+        }
+        Div({ 
+            style { 
+                display(DisplayStyle.Flex)
+                flexDirection(FlexDirection.Column)
+                gap(2.px) 
+            } 
+        }) {
+            Button(attrs = {
+                classes(MonsterSheetStyle.dndButton)
+                style { 
+                    padding(0.px, 4.px)
+                    fontSize(10.px)
+                    lineHeight(1.2.em)
+                    height(16.px)
+                }
+                onClick { onInc() }
+            }) { Text("+") }
+            Button(attrs = {
+                classes(MonsterSheetStyle.dndButton)
+                style { 
+                    padding(0.px, 4.px)
+                    fontSize(10.px)
+                    lineHeight(1.2.em)
+                    height(16.px)
+                }
+                onClick { onDec() }
+            }) { Text("-") }
         }
     }
 }
